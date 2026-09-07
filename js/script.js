@@ -869,4 +869,3 @@ function dataParaChave(data) {
 	const dia = String(data.getDate()).padStart(2, "0");
 	return ano + "-" + mes + "-" + dia;
 }
-
