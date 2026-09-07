@@ -621,3 +621,39 @@ button.calendario-dia:hover {
 		text-align: center;
 	}
 }
+
+/* ==========================
+   AJUSTE PARA CELULAR
+   ========================== */
+
+@media (max-width: 680px) {
+
+    body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    .cabecalho-pagina,
+    .area-tarefas,
+    .barra-lateral,
+    .area-perfil,
+    .area-filtros,
+    .area-calendario,
+    .card-tarefa,
+    .calendario-placeholder {
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .area-tarefas,
+    .area-perfil,
+    .area-filtros,
+    .area-calendario {
+        overflow: hidden;
+    }
+
+    .card-tarefa {
+        width: 100%;
+    }
+}
