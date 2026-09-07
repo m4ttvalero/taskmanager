@@ -2,31 +2,34 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="css/estilo.css">
+    <link rel="stylesheet" href="../css/cadastro.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Task Manager</title>
+    <title>Cadastro</title>
 </head>
 <body>
     
-    <div class="container">
+    <div class="boasvindas">
         <h1>Bem-vindo ao Task Manager</h1>
         <p>Gerencie suas tarefas de forma eficiente e organizada.</p>
     </div>
 
-    <div class="login">
-        <h2>Login ou faça seu Cadastro</h2>
-        <form action="login.php" method="post">
+    <div class="container">
+        <h2>Cadastro de Usuário</h2>
+        <form action="cadastro.php" method="post">
             <label for="username">Nome de Usuário:</label>
             <input type="text" id="username" name="username" placeholder="Dados fictícios" required>
+            <br>
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" placeholder="Dados fictícios" required>
             <br>
             <label for="password">Senha:</label>
             <input type="password" id="password" name="password" placeholder="Dados fictícios" required>
             <br>
-            <button type="submit">Entrar</button>
-            <button type="button" onclick="window.location.href='html/cadastro.html'">Cadastrar</button>
+            <div class="acoes">
+                <button type="submit">Cadastrar</button>
+                <button type="button" onclick="window.location.href='../index.html'">Voltar</button>
+            </div>
         </form>
-    </div>
-    
-    <script src="js/script.js"></script>
+    <script src="../js/script.js"></script>
 </body>
 </html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="../css/tarefas.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarefas</title>
+</head>
+<body>
+    <!-- Area esquerda: perfil e filtros em caixas independentes -->
+    <header class="cabecalho-pagina">
+        <section class="area-perfil" aria-labelledby="saudacao-usuario">
+            <a class="link-perfil" href="perfil.html" aria-label="Abrir perfil do usuario">
+                <span class="icone-usuario" aria-hidden="true">&#128100;</span>
+            </a>
+
+            <div class="informacoes-usuario">
+                <h1 id="saudacao-usuario">Olá, <span id="nome-usuario">[nome]</span></h1>
+                <div class="resumo-perfil" aria-label="Resumo das tarefas">
+                    <span>Total: <strong id="total-tarefas">0</strong></span>
+                    <span>Concluídas: <strong id="tarefas-concluidas">0</strong></span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Caixa independente para filtrar tarefas -->
+        <section class="area-filtros" aria-labelledby="titulo-filtros">
+            <h2 id="titulo-filtros">Filtrar tarefas</h2>
+            <nav class="filtros-tarefas" aria-label="Filtrar tarefas por importancia">
+                <button class="filtro filtro-todas" type="button" data-filtro="todas">Todas</button>
+                <button class="filtro filtro-alta" type="button" data-filtro="alta">Alta</button>
+                <button class="filtro filtro-media" type="button" data-filtro="media">Média</button>
+                <button class="filtro filtro-baixa" type="button" data-filtro="baixa">Baixa</button>
+            </nav>
+        </section>
+    </header>
+
+    <!-- Conteudo principal dividido em tres areas -->
+    <main class="layout-principal">
+        <!-- Area central com a lista de tarefas -->
+        <section class="area-tarefas" aria-labelledby="titulo-tarefas">
+            <div class="cabecalho-tarefas">
+                <h2 id="titulo-tarefas">Minhas tarefas</h2>
+            </div>
+
+            <div id="lista-tarefas" class="lista-tarefas">
+                <p id="sem-tarefas" class="sem-tarefas">Não há tarefas.</p>
+            </div>
+
+            <!-- Modelo de card para futuras tarefas geradas com JavaScript -->
+            <template id="modelo-tarefa">
+                <article class="card-tarefa" data-importancia="">
+                    <div class="conteudo-tarefa">
+                        <h3 class="nome-tarefa"></h3>
+                        <time class="data-tarefa" datetime=""></time>
+                        <span class="importancia-tarefa"></span>
+                        <p class="descricao-tarefa"></p>
+                    </div>
+
+                    <!-- Controles preparados para aparecer no hover da tarefa -->
+                    <div class="controles-tarefa" aria-label="Acoes da tarefa">
+                        <button class="botao-fixar" type="button" aria-label="Fixar tarefa">&#128204;</button>
+                        <label class="controle-conclusao">
+                            <input class="checkbox-conclusao" type="checkbox">
+                            <span>Concluído</span>
+                        </label>
+                        <button class="botao-editar" type="button" aria-label="Editar tarefa">Editar</button>
+                        <button class="botao-excluir" type="button" aria-label="Excluir tarefa">Excluir</button>
+                    </div>
+                </article>
+            </template>
+        </section>
+
+        <!-- Area direita reservada para acoes e calendario -->
+        <aside class="barra-lateral" aria-label="Acoes e calendario">
+            <a class="botao-adicionar-tarefa" href="tarefa.html">Adicionar tarefa</a>
+
+            <section id="calendario" class="area-calendario" aria-labelledby="titulo-calendario">
+                <h2 id="titulo-calendario">Calendario</h2>
+                <div id="calendario-placeholder" class="calendario-placeholder" aria-label="Area reservada para o calendario">
+                    Calendario
+                </div>
+            </section>
+
+            <a class="botao-tarefas-concluidas" href="concluidas.html">Tarefas concluídas</a>
+        </aside>
+    </main>
+
+    <script src="../js/script.js"></script>
+</body>
+</html>

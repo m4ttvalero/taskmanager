@@ -1,0 +1,190 @@
+@charset "UTF-8";
+
+:root {
+	--fundo: #181818;
+	--card: #242424;
+	--secundaria: #2e2e2e;
+	--texto: #e6e6e6;
+	--texto-secundario: #a8a8a8;
+	--borda: #3a3a3a;
+	--verde: #4caf70;
+	--vermelho: #c94a4a;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	min-height: 100vh;
+	margin: 0;
+	padding: 28px;
+	background: var(--fundo);
+	color: var(--texto);
+	font-family: "Segoe UI", Tahoma, sans-serif;
+}
+
+.cabecalho-concluidas,
+.painel-concluidas {
+	width: min(100%, 820px);
+	margin: 0 auto;
+}
+
+.cabecalho-concluidas {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 20px;
+	margin-bottom: 24px;
+}
+
+.cabecalho-concluidas h1 {
+	margin: 0;
+	font-size: clamp(1.5rem, 4vw, 2rem);
+}
+
+.cabecalho-concluidas a {
+	color: var(--texto-secundario);
+	text-decoration: none;
+}
+
+.cabecalho-concluidas a:hover {
+	color: var(--texto);
+}
+
+.painel-concluidas {
+	padding: 26px;
+	background: var(--card);
+	border: 1px solid var(--borda);
+	border-radius: 12px;
+}
+
+.resumo-concluidas {
+	margin: 0 0 20px;
+	color: var(--texto-secundario);
+}
+
+.resumo-concluidas strong {
+	color: var(--verde);
+}
+
+.lista-tarefas-concluidas {
+	display: grid;
+	gap: 14px;
+}
+
+.tarefa-concluida {
+	padding: 18px;
+	background: var(--secundaria);
+	border: 1px solid var(--borda);
+	border-left: 3px solid var(--verde);
+	border-radius: 8px;
+}
+
+.tarefa-concluida h2,
+.tarefa-concluida p {
+	margin: 0;
+}
+
+.tarefa-concluida h2 {
+	font-size: 1rem;
+}
+
+.tarefa-concluida .meta-tarefa {
+	margin-top: 8px;
+	color: var(--texto-secundario);
+	font-size: 0.88rem;
+}
+
+.tarefa-concluida .descricao-tarefa-concluida {
+	margin-top: 10px;
+	color: var(--texto-secundario);
+	line-height: 1.5;
+}
+
+.botao-excluir-concluida {
+	margin-top: 16px;
+	padding: 8px 12px;
+	background: rgba(201, 74, 74, 0.12);
+	border: 1px solid rgba(201, 74, 74, 0.5);
+	border-radius: 6px;
+	color: #e08a8a;
+	cursor: pointer;
+	font-weight: 600;
+}
+
+.botao-excluir-concluida:hover {
+	background: rgba(201, 74, 74, 0.22);
+	border-color: var(--vermelho);
+}
+
+.modal-confirmacao {
+	position: fixed;
+	inset: 0;
+	z-index: 20;
+	display: grid;
+	place-items: center;
+	padding: 20px;
+	background: rgba(0, 0, 0, 0.65);
+}
+
+.conteudo-confirmacao {
+	width: min(100%, 360px);
+	padding: 24px;
+	background: var(--card);
+	border: 1px solid var(--borda);
+	border-radius: 10px;
+	box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+	text-align: center;
+}
+
+.conteudo-confirmacao p {
+	margin: 0 0 20px;
+}
+
+.acoes-confirmacao {
+	display: flex;
+	gap: 10px;
+}
+
+.acoes-confirmacao button {
+	flex: 1;
+	min-height: 40px;
+	border: 1px solid var(--borda);
+	border-radius: 7px;
+	cursor: pointer;
+	font-weight: 600;
+}
+
+.botao-confirmar-exclusao {
+	background: rgba(201, 74, 74, 0.16);
+	border-color: rgba(201, 74, 74, 0.55) !important;
+	color: #e08a8a;
+}
+
+.botao-cancelar-exclusao {
+	background: var(--secundaria);
+	color: var(--texto);
+}
+
+.sem-tarefas-concluidas {
+	margin: 0;
+	padding: 56px 20px;
+	color: var(--texto-secundario);
+	text-align: center;
+}
+
+@media (max-width: 600px) {
+	body {
+		padding: 20px 12px;
+	}
+
+	.cabecalho-concluidas {
+		align-items: flex-start;
+		flex-direction: column-reverse;
+	}
+
+	.painel-concluidas {
+		padding: 20px 16px;
+	}
+}

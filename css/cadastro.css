@@ -36,30 +36,30 @@ body {
 /* ==========================
    BOAS-VINDAS
    ========================== */
-.container {
+.boasvindas {
     width: min(100%, 440px);
     margin: 0 auto;
     padding: 32px;
     text-align: center;
 }
 
-.container h1 {
+.boasvindas h1 {
     margin: 0 0 10px;
     font-size: clamp(1.7rem, 5vw, 2.25rem);
     font-weight: 650;
     letter-spacing: 0;
 }
 
-.container p {
+.boasvindas p {
     margin: 0;
     color: var(--texto-secundario);
     line-height: 1.6;
 }
 
 /* ==========================
-   CARD DO LOGIN
+   CARD DO CADASTRO
    ========================== */
-.login {
+.container {
     width: min(100%, 420px);
     margin: 0 auto;
     padding: 32px;
@@ -70,7 +70,7 @@ body {
     text-align: center;
 }
 
-.login h2 {
+.container h2 {
     margin: 0 0 26px;
     font-size: 1.35rem;
     font-weight: 600;
@@ -80,19 +80,23 @@ body {
 /* ==========================
    CAMPOS DO FORMULARIO
    ========================== */
-.login br {
+.container form {
+    display: flex;
+    flex-direction: column;
+}
+
+.container br {
     display: none;
 }
 
-.login label {
-    display: block;
+.container label {
+    align-self: flex-start;
     margin: 0 0 8px;
     color: var(--texto);
     font-size: 0.92rem;
-    text-align: left;
 }
 
-.login input {
+.container input {
     width: 100%;
     margin: 0 0 18px;
     padding: 12px 14px;
@@ -105,13 +109,13 @@ body {
     transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
 
-.login input:focus {
+.container input:focus {
     background: #333333;
     border-color: var(--foco);
     box-shadow: 0 0 0 3px rgba(208, 208, 208, 0.1);
 }
 
-.login input::placeholder {
+.container input::placeholder {
     color: var(--texto-secundario);
     opacity: 1;
 }
@@ -119,10 +123,17 @@ body {
 /* ==========================
    BOTOES
    ========================== */
-.login button {
+.acoes {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.acoes button {
     min-height: 42px;
-    margin: 4px 3px 0;
-    padding: 10px 18px;
+    flex: 1;
+    padding: 10px 14px;
     border: 1px solid transparent;
     border-radius: 7px;
     font: inherit;
@@ -131,33 +142,71 @@ body {
     transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
-.login button:hover {
+.acoes button:hover {
     transform: translateY(-1px);
 }
 
-.login button:focus-visible {
+.acoes button:focus-visible {
     outline: 3px solid rgba(208, 208, 208, 0.22);
     outline-offset: 2px;
 }
 
-.login button[type="submit"] {
+.acoes button[type="submit"] {
     background: var(--botao);
     color: var(--texto-botao);
 }
 
-.login button[type="submit"]:hover {
+.acoes button[type="submit"]:hover {
     background: #e0e0e0;
 }
 
-.login button[type="button"] {
+.acoes button[type="button"] {
     background: transparent;
     border-color: var(--borda);
     color: var(--texto);
 }
 
-.login button[type="button"]:hover {
+.acoes button[type="button"]:hover {
     background: var(--secundaria);
     border-color: var(--foco);
+}
+
+/* ==========================
+   MENSAGEM DE CADASTRO
+   ========================== */
+.mensagem-cadastro {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    z-index: 10;
+    max-width: min(360px, calc(100vw - 32px));
+    padding: 14px 18px;
+    background: var(--card);
+    border: 1px solid rgba(76, 175, 112, 0.6);
+    border-radius: 8px;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.3);
+    color: #8ccc9e;
+    font-size: 0.92rem;
+    text-align: center;
+    transform: translate(-50%, -50%);
+    animation: entrada-mensagem 180ms ease-out;
+}
+
+.mensagem-cadastro.mensagem-atencao {
+    border-color: #a89562;
+    color: #d1bd7a;
+}
+
+@keyframes entrada-mensagem {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -60%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
 }
 
 /* ==========================
@@ -169,13 +218,22 @@ body {
         gap: 12px;
     }
 
-    .container,
-    .login {
+    .boasvindas,
+    .container {
         padding: 24px 20px;
     }
 
-    .login button {
-        width: calc(50% - 8px);
+    .acoes {
+        gap: 8px;
+    }
+
+    .acoes button {
         padding-inline: 10px;
+    }
+
+    .mensagem-cadastro {
+        max-width: none;
+        width: calc(100vw - 24px);
+        text-align: center;
     }
 }

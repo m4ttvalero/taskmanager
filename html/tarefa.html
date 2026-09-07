@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="../css/tarefa.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarefa</title>
+</head>
+<body>
+    <!-- Cabecalho da pagina -->
+    <header class="cabecalho-tarefa">
+        <a class="link-voltar" href="../html/tarefas.html">Voltar para tarefas</a>
+        <h1 id="titulo-pagina-tarefa">Adicionar tarefa</h1>
+    </header>
+
+    <!-- Layout principal com lista, formulario e calendario -->
+    <main class="layout-tarefa">
+        <!-- Lista lateral das tarefas da conta atual -->
+        <aside class="painel-tarefas-existentes" aria-labelledby="titulo-tarefas-existentes">
+            <h2 id="titulo-tarefas-existentes">Tarefas existentes</h2>
+            <div class="lista-tarefas-wrapper">
+                <p id="sem-tarefas-existentes">Não há tarefas.</p>
+                <ul id="lista-tarefas-existentes" class="lista-tarefas-existentes"></ul>
+            </div>
+        </aside>
+
+        <!-- Formulario central para criar uma nova tarefa -->
+        <section class="painel-formulario-tarefa" aria-labelledby="titulo-formulario-tarefa">
+            <h2 id="titulo-formulario-tarefa">Adicionar tarefa</h2>
+
+            <form id="formulario-tarefa">
+                <label for="titulo-tarefa">Nome da tarefa</label>
+                <input type="text" id="titulo-tarefa" name="titulo" placeholder="Digite o nome da tarefa" required>
+
+                <label for="data-tarefa">Data da tarefa</label>
+                <input type="date" id="data-tarefa" name="data" required>
+
+                <label for="importancia-tarefa">Importância</label>
+                <select id="importancia-tarefa" name="importancia" required>
+                    <option value="">Selecione a importância</option>
+                    <option value="alta">Alta</option>
+                    <option value="media">Média</option>
+                    <option value="baixa">Baixa</option>
+                </select>
+
+                <label for="descricao-tarefa">Descrição</label>
+                <textarea id="descricao-tarefa" name="descricao" rows="5" placeholder="Descreva a tarefa"></textarea>
+
+                <div class="acoes-tarefa">
+                    <button type="submit" class="botao-salvar-tarefa">Salvar</button>
+                    <button type="button" id="cancelar-tarefa" class="botao-cancelar-tarefa">Cancelar</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Area reservada para o calendario futuro -->
+        <aside class="painel-calendario" aria-labelledby="titulo-calendario-tarefa">
+            <h2 id="titulo-calendario-tarefa">Calendário</h2>
+            <div id="calendario-tarefa" class="calendario-placeholder-tarefa">
+                Calendário
+            </div>
+        </aside>
+    </main>
+
+    <script src="../js/script.js"></script>
+</body>
+</html>
