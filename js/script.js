@@ -1,871 +1,1610 @@
+// ============================================================
+// CONFIGURAÇÕES GERAIS
+// ============================================================
+
+// Guarda qual filtro de tarefas está selecionado atualmente.
 let filtroTarefasAtual = "todas";
+
+// Guarda os calendários que estão ativos na página.
 const calendariosAtivos = [];
+
+// Endereço base da nossa API.
+// Como o backend está rodando localmente, usamos localhost.
+const API_URL = "http://localhost:3000";
+
+// ============================================================
+// INICIALIZAÇÃO
+// ============================================================
 
 // Espera o HTML terminar de carregar antes de configurar cada página.
 document.addEventListener("DOMContentLoaded", function () {
-	const formularioCadastro = document.querySelector('form[action="cadastro.php"]');
-	const formularioLogin = document.querySelector('form[action="login.php"]');
-	const formularioTarefa = document.getElementById("formulario-tarefa");
+  // Procura o formulário de cadastro pelo ID.
+  const formularioCadastro = document.getElementById("formulario-cadastro");
 
-	// Atualiza a saudação quando a página tarefas é aberta.
-	atualizarSaudacao();
-	atualizarContadores();
+  // Procura o formulário de login.
+  const formularioLogin = document.querySelector('form[action="login.php"]');
 
-	if (formularioCadastro) {
-		configurarCadastro(formularioCadastro);
-	}
+  // Procura o formulário de tarefa.
+  const formularioTarefa = document.getElementById("formulario-tarefa");
 
-	if (formularioLogin) {
-		configurarLogin(formularioLogin);
-	}
+  // Atualiza a saudação quando a página de tarefas é aberta.
+  atualizarSaudacao();
 
-	if (formularioTarefa) {
-		configurarPaginaTarefa(formularioTarefa);
-	}
+  // Atualiza os contadores do perfil.
+  atualizarContadores();
 
-	if (document.getElementById("lista-tarefas")) {
-		configurarFiltrosTarefas();
-		renderizarTarefas(filtroTarefasAtual);
-	}
+  // ========================================================
+  // CADASTRO
+  // ========================================================
 
-	if (document.getElementById("lista-tarefas-concluidas")) {
-		renderizarTarefasConcluidas();
-	}
+  // Configura o cadastro caso o formulário exista nessa página.
+  if (formularioCadastro) {
+    configurarCadastro(formularioCadastro);
+  }
 
-	if (document.getElementById("calendario-placeholder")) {
-		configurarCalendario("calendario-placeholder", false);
-	}
+  // ========================================================
+  // LOGIN
+  // ========================================================
 
-	if (document.getElementById("calendario-tarefa")) {
-		configurarCalendario("calendario-tarefa", true);
-	}
+  // Configura o login caso o formulário exista nessa página.
+  if (formularioLogin) {
+    configurarLogin(formularioLogin);
+  }
 
-// ==============================
-// PERFIL
-// ==============================
+  // ========================================================
+  // TAREFAS
+  // ========================================================
 
-const nomePerfil = document.getElementById("nomePerfil");
-const emailPerfil = document.getElementById("emailPerfil");
-const botaoSair = document.getElementById("sair");
+  // Configura a página de adicionar/editar tarefa.
+  if (formularioTarefa) {
+    configurarPaginaTarefa(formularioTarefa);
+  }
 
-const usuarioAtual = obterUsuarioAtual();
+  // Configura os filtros e a lista de tarefas.
+  if (document.getElementById("lista-tarefas")) {
+    configurarFiltrosTarefas();
+    renderizarTarefas(filtroTarefasAtual);
+  }
 
-if (usuarioAtual) {
+  // Configura a página de tarefas concluídas.
+  if (document.getElementById("lista-tarefas-concluidas")) {
+    renderizarTarefasConcluidas();
+  }
+
+  // Configura o calendário da página de tarefas.
+  if (document.getElementById("calendario-placeholder")) {
+    configurarCalendario("calendario-placeholder", false);
+  }
+
+  // Configura o calendário da página de adicionar tarefa.
+  if (document.getElementById("calendario-tarefa")) {
+    configurarCalendario("calendario-tarefa", true);
+  }
+
+  // ========================================================
+  // PERFIL
+  // ========================================================
+
+  // Verifica se estamos na página de perfil.
+  if (document.getElementById("nomePerfil")) {
+    // Carrega os dados reais do usuário através da API.
+    carregarPerfil();
+  }
+
+  // Configura a edição do perfil.
+  configurarEdicaoPerfil();
+
+  // ========================================================
+  // BOTÃO SAIR
+  // ========================================================
+
+  const botaoSair = document.getElementById("sair");
+
+  if (botaoSair) {
+    botaoSair.addEventListener("click", function () {
+      // Remove os dados básicos do usuário atual.
+      localStorage.removeItem("usuarioAtual");
+
+      // Remove também o JWT.
+      localStorage.removeItem("token");
+
+      // Volta para a página de login.
+      window.location.href = "../index.html";
+    });
+  }
+});
+
+// ============================================================
+// USUÁRIO E AUTENTICAÇÃO
+// ============================================================
+
+// Recupera os dados do usuário salvo no navegador.
+function obterUsuarioAtual() {
+  const usuarioSalvo = localStorage.getItem("usuarioAtual");
+
+  return usuarioSalvo ? JSON.parse(usuarioSalvo) : null;
+}
+
+// Guarda os dados básicos do usuário atual.
+function salvarUsuarioAtual(conta) {
+  localStorage.setItem(
+    "usuarioAtual",
+    JSON.stringify({
+      id: conta.id,
+      nome: conta.nome,
+      email: conta.email,
+    }),
+  );
+}
+
+// Recupera o JWT salvo no navegador.
+function obterToken() {
+  return localStorage.getItem("token");
+}
+
+// ============================================================
+// SAUDAÇÃO
+// ============================================================
+
+// Mostra o nome do usuário salvo ou somente "Olá,".
+function atualizarSaudacao() {
+  const saudacao = document.getElementById("saudacao-usuario");
+
+  if (!saudacao) {
+    return;
+  }
+
+  const usuarioAtual = obterUsuarioAtual();
+
+  if (!usuarioAtual) {
+    saudacao.textContent = "Olá,";
+
+    return;
+  }
+
+  saudacao.textContent = `Olá, ${usuarioAtual.nome}`;
+}
+
+// ============================================================
+// CONTADORES DO PERFIL
+// ============================================================
+
+// Conta somente as tarefas da conta atual.
+function atualizarContadores() {
+  const total = document.getElementById("total-tarefas");
+
+  const concluidas = document.getElementById("tarefas-concluidas");
+
+  if (!total || !concluidas) {
+    return;
+  }
+
+  const tarefas = obterTarefasDoUsuarioAtual();
+
+  total.textContent = tarefas.length;
+
+  concluidas.textContent = tarefas.filter(function (tarefa) {
+    return tarefa.concluida;
+  }).length;
+}
+
+// ============================================================
+// PERFIL - BUSCAR DADOS NA API
+// ============================================================
+
+// Busca os dados do usuário autenticado no backend.
+async function carregarPerfil() {
+  const token = obterToken();
+
+  // Se não existe token, não existe autenticação válida.
+  if (!token) {
+    alert("Sua sessão não foi encontrada. Faça login novamente.");
+
+    window.location.href = "../index.html";
+
+    return;
+  }
+
+  try {
+    // Faz uma requisição para a rota protegida.
+    const resposta = await fetch(`${API_URL}/usuarios/me`, {
+      method: "GET",
+
+      // Envia o JWT no cabeçalho Authorization.
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    // Converte a resposta para JSON.
+    const dados = await resposta.json();
+
+    // Verifica se o token expirou ou é inválido.
+    if (resposta.status === 401) {
+      // Remove a sessão inválida.
+      localStorage.removeItem("token");
+      localStorage.removeItem("usuarioAtual");
+
+      alert("Sua sessão expirou. Faça login novamente.");
+
+      window.location.href = "../index.html";
+
+      return;
+    }
+
+    // Verifica outros erros.
+    if (!resposta.ok) {
+      alert(dados.erro || "Não foi possível carregar o perfil.");
+
+      return;
+    }
+
+    // Atualiza os dados do usuário no navegador.
+    salvarUsuarioAtual(dados);
+
+    // Atualiza os elementos visuais da página.
+    const nomePerfil = document.getElementById("nomePerfil");
+
+    const emailPerfil = document.getElementById("emailPerfil");
 
     if (nomePerfil) {
-        nomePerfil.textContent = usuarioAtual.nome;
+      nomePerfil.textContent = dados.nome;
     }
 
     if (emailPerfil) {
-        emailPerfil.textContent = usuarioAtual.email;
+      emailPerfil.textContent = dados.email;
     }
 
+    // Atualiza também a saudação.
+    atualizarSaudacao();
+
+    // Atualiza os contadores das tarefas.
     atualizarContadores();
+
+    // Preenche os campos de edição.
+    preencherCamposEdicaoPerfil(dados);
+  } catch (erro) {
+    // Mostra o erro no console para facilitar a identificação.
+    console.error("Erro ao carregar perfil:", erro);
+
+    alert("Não foi possível conectar ao servidor.");
+  }
 }
 
+// ============================================================
+// PERFIL - EDITAR
+// ============================================================
 
-// ==============================
-// BOTÃO SAIR
-// ==============================
+// Configura o botão e o formulário de edição do perfil.
+function configurarEdicaoPerfil() {
+  const botaoEditar = document.getElementById("editar-perfil");
 
-if (botaoSair) {
+  const areaEditar = document.getElementById("area-editar-perfil");
 
-    botaoSair.addEventListener("click", function () {
+  const formulario = document.getElementById("formulario-editar-perfil");
 
+  const botaoCancelar = document.getElementById("cancelar-edicao-perfil");
+
+  // Se a página não possui os elementos de edição,
+  // simplesmente não fazemos nada.
+  if (!botaoEditar || !areaEditar || !formulario || !botaoCancelar) {
+    return;
+  }
+
+  // ========================================================
+  // BOTÃO EDITAR
+  // ========================================================
+
+  botaoEditar.addEventListener("click", function () {
+    // Recupera os dados atuais do usuário.
+    const usuarioAtual = obterUsuarioAtual();
+
+    // Preenche os campos com os dados atuais.
+    if (usuarioAtual) {
+      preencherCamposEdicaoPerfil(usuarioAtual);
+    }
+
+    // Mostra a área de edição.
+    areaEditar.hidden = false;
+
+    // Esconde o botão editar enquanto
+    // o formulário está aberto.
+    botaoEditar.hidden = true;
+
+    // Coloca o cursor no campo de nome.
+    const campoNome = document.getElementById("nome-editar");
+
+    if (campoNome) {
+      campoNome.focus();
+    }
+  });
+
+  // ========================================================
+  // BOTÃO CANCELAR
+  // ========================================================
+
+  botaoCancelar.addEventListener("click", function () {
+    // Esconde novamente o formulário.
+    areaEditar.hidden = true;
+
+    // Mostra o botão editar.
+    botaoEditar.hidden = false;
+  });
+
+  // ========================================================
+  // SALVAR ALTERAÇÕES
+  // ========================================================
+
+  formulario.addEventListener("submit", async function (evento) {
+    // Impede o formulário de recarregar a página.
+    evento.preventDefault();
+
+    // Pega os valores digitados.
+    const nome = document.getElementById("nome-editar").value.trim();
+
+    const email = document
+      .getElementById("email-editar")
+      .value.trim()
+      .toLowerCase();
+
+    // Validação básica.
+    if (!nome || !email) {
+      alert("Nome e e-mail são obrigatórios.");
+
+      return;
+    }
+
+    // Recupera o JWT.
+    const token = obterToken();
+
+    // Sem token não podemos alterar o perfil.
+    if (!token) {
+      alert("Sua sessão expirou. Faça login novamente.");
+
+      window.location.href = "../index.html";
+
+      return;
+    }
+
+    try {
+      // Envia os novos dados para a API.
+      const resposta = await fetch(`${API_URL}/usuarios/me`, {
+        // PUT significa atualização.
+        method: "PUT",
+
+        // Informa que estamos enviando JSON.
+        headers: {
+          "Content-Type": "application/json",
+
+          // Envia o JWT para autenticar
+          // o usuário da requisição.
+          Authorization: `Bearer ${token}`,
+        },
+
+        // Envia somente os dados que podem
+        // ser alterados pelo usuário.
+        body: JSON.stringify({
+          nome: nome,
+          email: email,
+        }),
+      });
+
+      // Converte a resposta para JSON.
+      const dados = await resposta.json();
+
+      // Verifica se o token expirou.
+      if (resposta.status === 401) {
+        localStorage.removeItem("token");
         localStorage.removeItem("usuarioAtual");
 
+        alert("Sua sessão expirou. Faça login novamente.");
+
         window.location.href = "../index.html";
-    });
+
+        return;
+      }
+
+      // Verifica se o e-mail já está sendo utilizado.
+      if (resposta.status === 409) {
+        alert(dados.erro || "Este e-mail já está cadastrado.");
+
+        return;
+      }
+
+      // Verifica outros erros.
+      if (!resposta.ok) {
+        alert(dados.erro || "Não foi possível atualizar o perfil.");
+
+        return;
+      }
+
+      // Depois da alteração, busca novamente os dados
+      // diretamente do banco através da API.
+      await carregarPerfil();
+
+      // Fecha a área de edição.
+      areaEditar.hidden = true;
+
+      // Mostra novamente o botão editar.
+      botaoEditar.hidden = false;
+
+      // =================================================
+      // MENSAGEM DE SUCESSO
+      // =================================================
+
+      // Cria a mensagem visual de sucesso.
+      mostrarMensagemPerfil(dados.mensagem || "Perfil atualizado com sucesso!");
+    } catch (erro) {
+      console.error("Erro ao atualizar perfil:", erro);
+
+      alert("Não foi possível conectar ao servidor.");
+    }
+  });
 }
 
-});
+// ============================================================
+// PERFIL - MENSAGEM DE SUCESSO
+// ============================================================
 
-// Lê as contas salvas no navegador ou devolve uma lista vazia.
-function obterContas() {
-	const contasSalvas = localStorage.getItem("contas");
-	return contasSalvas ? JSON.parse(contasSalvas) : [];
+// Cria uma mensagem visual de sucesso
+// sem precisar colocar um elemento no HTML.
+function mostrarMensagemPerfil(texto) {
+  // Verifica se já existe uma mensagem na tela.
+  const mensagemAntiga = document.querySelector(".mensagem-perfil");
+
+  // Remove a mensagem antiga para evitar duplicação.
+  if (mensagemAntiga) {
+    mensagemAntiga.remove();
+  }
+
+  // Cria um novo elemento <div>.
+  const mensagem = document.createElement("div");
+
+  // Adiciona a classe que será estilizada pelo CSS.
+  mensagem.className = "mensagem-perfil";
+
+  // Define a mensagem de acessibilidade.
+  mensagem.setAttribute("role", "status");
+
+  // Coloca o texto dentro da mensagem.
+  mensagem.textContent = texto;
+
+  // Adiciona a mensagem diretamente ao body.
+  document.body.appendChild(mensagem);
+
+  // Remove automaticamente depois de 3 segundos.
+  setTimeout(function () {
+    mensagem.remove();
+  }, 3000);
 }
 
-// Recupera os dados da conta que está usando o site neste momento.
-function obterUsuarioAtual() {
-	const usuarioSalvo = localStorage.getItem("usuarioAtual");
-	return usuarioSalvo ? JSON.parse(usuarioSalvo) : null;
+// ============================================================
+// PERFIL - PREENCHER CAMPOS
+// ============================================================
+
+// Preenche os campos do formulário com os dados do usuário.
+function preencherCamposEdicaoPerfil(usuario) {
+  const campoNome = document.getElementById("nome-editar");
+
+  const campoEmail = document.getElementById("email-editar");
+
+  if (campoNome) {
+    campoNome.value = usuario.nome || "";
+  }
+
+  if (campoEmail) {
+    campoEmail.value = usuario.email || "";
+  }
 }
 
-// Guarda qual conta está usando o site neste momento.
-function salvarUsuarioAtual(conta) {
-	localStorage.setItem("usuarioAtual", JSON.stringify({
-		nome: conta.nome,
-		email: conta.email
-	}));
+// ============================================================
+// CADASTRO
+// ============================================================
+
+// O cadastro é realizado através da API.
+// A senha NÃO é salva no localStorage.
+// Ela é enviada para o backend,
+// onde o bcrypt cria o hash.
+function configurarCadastro(formularioCadastro) {
+  formularioCadastro.addEventListener("submit", async function (evento) {
+    // Impede o formulário de recarregar a página.
+    evento.preventDefault();
+
+    // Pega o nome digitado pelo usuário.
+    const nome = document.getElementById("username").value.trim();
+
+    // Pega o e-mail digitado pelo usuário.
+    const email = document.getElementById("email").value.trim().toLowerCase();
+
+    // Pega a senha digitada pelo usuário.
+    const senha = document.getElementById("password").value.trim();
+
+    // Impede o envio com campos vazios.
+    if (!nome || !email || !senha) {
+      alert("Preencha Nome, Email e Senha.");
+
+      return;
+    }
+
+    try {
+      // Envia os dados para o backend.
+      const resposta = await fetch(`${API_URL}/usuarios`, {
+        // POST é utilizado para criar
+        // um novo usuário.
+        method: "POST",
+
+        // Informa ao servidor que estamos
+        // enviando dados em formato JSON.
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        // Converte os dados do formulário
+        // para JSON antes de enviar.
+        body: JSON.stringify({
+          nome: nome,
+          email: email,
+          senha: senha,
+        }),
+      });
+
+      // Converte a resposta da API para JSON.
+      const dados = await resposta.json();
+
+      // Verifica se o cadastro apresentou erro.
+      if (!resposta.ok) {
+        // Se o e-mail já existir,
+        // o backend retorna o status 409.
+        if (resposta.status === 409) {
+          mostrarMensagemCadastro("Conta já criada! Faça o login.", "atencao");
+
+          setTimeout(function () {
+            window.location.href = "../index.html";
+          }, 3000);
+
+          return;
+        }
+
+        // Mostra outros erros enviados pela API.
+        alert(dados.erro || "Não foi possível realizar o cadastro.");
+
+        return;
+      }
+
+      // Cadastro realizado com sucesso.
+      mostrarMensagemCadastro("Cadastro realizado com sucesso!");
+
+      // Limpa os campos do formulário.
+      formularioCadastro.reset();
+
+      // Depois do cadastro,
+      // volta para o login.
+      setTimeout(function () {
+        window.location.href = "../index.html";
+      }, 3000);
+    } catch (erro) {
+      // Mostra o erro no console.
+      console.error("Erro ao realizar cadastro:", erro);
+
+      // Esse erro normalmente acontece quando
+      // o navegador não consegue acessar a API.
+      alert(
+        "Não foi possível conectar ao servidor. " +
+          "Verifique se o backend está funcionando.",
+      );
+    }
+  });
 }
+
+// ============================================================
+// MENSAGEM DE CADASTRO
+// ============================================================
+
+// Cria uma mensagem visual usando o CSS do cadastro.
+function mostrarMensagemCadastro(texto, tipo) {
+  const mensagem = document.createElement("div");
+
+  mensagem.className = "mensagem-cadastro";
+
+  if (tipo) {
+    mensagem.classList.add("mensagem-" + tipo);
+  }
+
+  mensagem.setAttribute("role", "status");
+
+  mensagem.textContent = texto;
+
+  document.body.appendChild(mensagem);
+}
+
+// ============================================================
+// LOGIN
+// ============================================================
+
+// O login é realizado através da API.
+function configurarLogin(formularioLogin) {
+  formularioLogin.addEventListener("submit", async function (evento) {
+    // Impede o formulário de recarregar a página.
+    evento.preventDefault();
+
+    // O campo username representa o e-mail.
+    const email = document
+      .getElementById("username")
+      .value.trim()
+      .toLowerCase();
+
+    const senha = document.getElementById("password").value.trim();
+
+    // Verifica se os campos foram preenchidos.
+    if (!email || !senha) {
+      alert("E-mail e senha são obrigatórios.");
+
+      return;
+    }
+
+    try {
+      // Envia o login para o backend.
+      const resposta = await fetch(`${API_URL}/usuarios/login`, {
+        // Método utilizado para login.
+        method: "POST",
+
+        // Informa que estamos enviando JSON.
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        // Envia e-mail e senha.
+        body: JSON.stringify({
+          email: email,
+          senha: senha,
+        }),
+      });
+
+      // Converte a resposta para JSON.
+      const dados = await resposta.json();
+
+      // Verifica se o login falhou.
+      if (!resposta.ok) {
+        alert(dados.erro || "E-mail ou senha incorretos.");
+
+        return;
+      }
+
+      // =================================================
+      // LOGIN REALIZADO
+      // =================================================
+
+      // Salva o JWT recebido do backend.
+      // O token será usado nas rotas protegidas.
+      localStorage.setItem("token", dados.token);
+
+      // Salva somente os dados básicos do usuário.
+      // A senha nunca é armazenada aqui.
+      salvarUsuarioAtual(dados.usuario);
+
+      // Vai para a página principal.
+      window.location.href = "html/tarefas.html";
+    } catch (erro) {
+      // Mostra o erro no console.
+      console.error("Erro ao realizar login:", erro);
+
+      alert(
+        "Não foi possível conectar ao servidor. " +
+          "Verifique se o backend está funcionando.",
+      );
+    }
+  });
+}
+
+// ============================================================
+// TAREFAS - LOCALSTORAGE
+// ============================================================
 
 // Lê todas as tarefas agrupadas pelo e-mail de cada conta.
 function obterTarefasSalvas() {
-	const tarefasSalvas = localStorage.getItem("tarefasPorUsuario");
-	return tarefasSalvas ? JSON.parse(tarefasSalvas) : {};
+  const tarefasSalvas = localStorage.getItem("tarefasPorUsuario");
+
+  return tarefasSalvas ? JSON.parse(tarefasSalvas) : {};
 }
 
-// Salva novamente a lista completa de tarefas no navegador.
+// Salva novamente a lista completa de tarefas.
 function salvarTarefasSalvas(tarefasPorUsuario) {
-	localStorage.setItem("tarefasPorUsuario", JSON.stringify(tarefasPorUsuario));
+  localStorage.setItem("tarefasPorUsuario", JSON.stringify(tarefasPorUsuario));
 }
 
-// Devolve somente as tarefas pertencentes à conta atual.
+// Devolve somente as tarefas da conta atual.
 function obterTarefasDoUsuarioAtual() {
-	const usuarioAtual = obterUsuarioAtual();
-	const tarefasPorUsuario = obterTarefasSalvas();
+  const usuarioAtual = obterUsuarioAtual();
 
-	if (!usuarioAtual) {
-		return [];
-	}
+  const tarefasPorUsuario = obterTarefasSalvas();
 
-	return tarefasPorUsuario[usuarioAtual.email] || [];
+  if (!usuarioAtual) {
+    return [];
+  }
+
+  return tarefasPorUsuario[usuarioAtual.email] || [];
 }
 
-// Mostra o nome salvo ou somente "Olá," quando ninguém está logado.
-function atualizarSaudacao() {
-	const saudacao = document.getElementById("saudacao-usuario");
-	const usuarioSalvo = localStorage.getItem("usuarioAtual");
+// ============================================================
+// ADICIONAR / EDITAR TAREFA
+// ============================================================
 
-	if (!saudacao) {
-		return;
-	}
-
-	if (!usuarioSalvo) {
-		saudacao.textContent = "Olá,";
-		return;
-	}
-
-	const usuarioAtual = JSON.parse(usuarioSalvo);
-	saudacao.textContent = `Olá, ${usuarioAtual.nome}`;
-}
-
-// ==============================
-// CONTADORES DO PERFIL
-// ==============================
-
-// Conta somente as tarefas da conta atual e atualiza os números do perfil.
-function atualizarContadores() {
-	const total = document.getElementById("total-tarefas");
-	const concluidas = document.getElementById("tarefas-concluidas");
-
-	if (!total || !concluidas) {
-		return;
-	}
-
-	const tarefas = obterTarefasDoUsuarioAtual();
-	total.textContent = tarefas.length;
-	concluidas.textContent = tarefas.filter(function (tarefa) {
-		return tarefa.concluida;
-	}).length;
-}
-
-// Salva uma nova conta e define essa conta como a conta atual.
-function configurarCadastro(formularioCadastro) {
-	formularioCadastro.addEventListener("submit", function (evento) {
-		evento.preventDefault();
-
-		const nome = document.getElementById("username").value.trim();
-		const email = document.getElementById("email").value.trim().toLowerCase();
-		const senha = document.getElementById("password").value.trim();
-
-		// Impede o salvamento enquanto algum campo estiver vazio.
-		if (!nome || !email || !senha) {
-			alert("Preencha Nome, Email e Senha.");
-			return;
-		}
-
-		const contas = obterContas();
-		// Compara o e-mail digitado com os e-mails das contas existentes.
-		const emailJaCadastrado = contas.some(function (conta) {
-			return conta.email === email;
-		});
-
-		if (emailJaCadastrado) {
-			// Evita contas repetidas e orienta a pessoa a usar o login.
-			mostrarMensagemCadastro("Conta já criada! Faça o login.", "atencao");
-
-			// Leva a pessoa ao login depois de visualizar a mensagem.
-			setTimeout(function () {
-				window.location.href = "../index.html";
-			}, 3000);
-			return;
-		}
-
-		const novaConta = {
-			nome: nome,
-			email: email,
-			senha: senha
-		};
-
-		contas.push(novaConta);
-		localStorage.setItem("contas", JSON.stringify(contas));
-		salvarUsuarioAtual(novaConta);
-
-		mostrarMensagemCadastro("Cadastro salvo com sucesso.");
-		formularioCadastro.reset();
-
-		// Aguarda a mensagem ser exibida antes de abrir a pagina de tarefas.
-		setTimeout(function () {
-			window.location.href = "tarefas.html";
-		}, 3000);
-	});
-}
-
-// Cria uma mensagem visual usando a classe estilizada no cadastro.css.
-function mostrarMensagemCadastro(texto, tipo) {
-	const mensagem = document.createElement("div");
-	mensagem.className = "mensagem-cadastro";
-
-	// O tipo permite aplicar um estilo diferente, como a mensagem de atenção.
-	if (tipo) {
-		mensagem.classList.add("mensagem-" + tipo);
-	}
-
-	// Insere a mensagem no body para que o CSS possa posicioná-la na tela.
-	mensagem.setAttribute("role", "status");
-	mensagem.textContent = texto;
-	document.body.appendChild(mensagem);
-	}
-
-// Verifica o nome e a senha e define a conta atual após o login.
-function configurarLogin(formularioLogin) {
-	formularioLogin.addEventListener("submit", function (evento) {
-		evento.preventDefault();
-
-		const nome = document.getElementById("username").value.trim();
-		const senha = document.getElementById("password").value.trim();
-		// Procura uma conta com o mesmo nome e senha informados no login.
-		const contaEncontrada = obterContas().find(function (conta) {
-			return conta.nome === nome && conta.senha === senha;
-		});
-
-		if (!contaEncontrada) {
-			alert("Nome de usuário ou senha incorretos.");
-			return;
-		}
-
-		salvarUsuarioAtual(contaEncontrada);
-		window.location.href = "html/tarefas.html";
-	});
-}
-
-// ==============================
-// ADICIONAR TAREFA
-// ==============================
-
-// Configura o formulario e a lista lateral da pagina de adicionar tarefa.
+// Configura o formulário e a lista lateral.
 function configurarPaginaTarefa(formularioTarefa) {
-	const usuarioAtual = obterUsuarioAtual();
-	const idTarefaEditando = localStorage.getItem("tarefaEditando");
+  const usuarioAtual = obterUsuarioAtual();
 
-	if (!usuarioAtual) {
-		alert("Faça login antes de adicionar uma tarefa.");
-		window.location.href = "../index.html";
-		return;
-	}
+  const idTarefaEditando = localStorage.getItem("tarefaEditando");
 
-	renderizarListaTarefasExistentes();
+  if (!usuarioAtual) {
+    alert("Faça login antes de adicionar uma tarefa.");
 
-	if (idTarefaEditando) {
-		carregarTarefaParaEdicao(idTarefaEditando);
-	}
+    window.location.href = "../index.html";
 
-	formularioTarefa.addEventListener("submit", function (evento) {
-		evento.preventDefault();
+    return;
+  }
 
-		// Pegamos os dados preenchidos pelo usuário.
-		const titulo = document.getElementById("titulo-tarefa").value.trim();
-		const data = document.getElementById("data-tarefa").value;
-		const importancia = document.getElementById("importancia-tarefa").value;
-		const descricao = document.getElementById("descricao-tarefa").value.trim();
+  renderizarListaTarefasExistentes();
 
-		// Nome, data e importancia são obrigatorios para criar a tarefa.
-		if (!titulo || !data || !importancia) {
-			alert("Preencha o nome, a data e a importância da tarefa.");
-			return;
-		}
+  if (idTarefaEditando) {
+    carregarTarefaParaEdicao(idTarefaEditando);
+  }
 
-		// Se houver um ID de edicao, atualizamos a tarefa sem criar outra.
-		if (idTarefaEditando) {
-			const atualizou = alterarTarefaAtual(idTarefaEditando, function (tarefaAtualizada) {
-				tarefaAtualizada.titulo = titulo;
-				tarefaAtualizada.data = data;
-				tarefaAtualizada.importancia = importancia;
-				tarefaAtualizada.descricao = descricao;
-			});
+  formularioTarefa.addEventListener("submit", function (evento) {
+    evento.preventDefault();
 
-			if (atualizou) {
-				localStorage.removeItem("tarefaEditando");
-				window.location.href = "../html/tarefas.html";
-			}
-			return;
-		}
+    const titulo = document.getElementById("titulo-tarefa").value.trim();
 
-		// Criamos um novo objeto de tarefa com valores iniciais simples.
-		const novaTarefa = {
-			id: Date.now().toString() + "-" + Math.random().toString(16).slice(2),
-			titulo: titulo,
-			data: data,
-			importancia: importancia,
-			descricao: descricao,
-			concluida: false,
-			fixada: false
-		};
+    const data = document.getElementById("data-tarefa").value;
 
-		// Pegamos as tarefas de todas as contas e alteramos somente a conta atual.
-		const tarefasPorUsuario = obterTarefasSalvas();
-		const tarefasDoUsuario = tarefasPorUsuario[usuarioAtual.email] || [];
-		tarefasDoUsuario.push(novaTarefa);
-		tarefasPorUsuario[usuarioAtual.email] = tarefasDoUsuario;
+    const importancia = document.getElementById("importancia-tarefa").value;
 
-		// Salvamos a tarefa no localStorage separada pelo e-mail da conta.
-		salvarTarefasSalvas(tarefasPorUsuario);
+    const descricao = document.getElementById("descricao-tarefa").value.trim();
 
-		// Redirecionamos para a pagina principal depois de salvar.
-		window.location.href = "../html/tarefas.html";
-	});
+    // Validação básica.
+    if (!titulo || !data || !importancia) {
+      alert("Preencha o nome, a data e a importância da tarefa.");
 
-	// O botao cancelar apenas volta sem salvar os dados preenchidos.
-	document.getElementById("cancelar-tarefa").addEventListener("click", function () {
-		localStorage.removeItem("tarefaEditando");
-		window.location.href = "../html/tarefas.html";
-	});
+      return;
+    }
+
+    // =================================================
+    // EDITAR TAREFA
+    // =================================================
+
+    if (idTarefaEditando) {
+      const atualizou = alterarTarefaAtual(
+        idTarefaEditando,
+        function (tarefaAtualizada) {
+          tarefaAtualizada.titulo = titulo;
+
+          tarefaAtualizada.data = data;
+
+          tarefaAtualizada.importancia = importancia;
+
+          tarefaAtualizada.descricao = descricao;
+        },
+      );
+
+      if (atualizou) {
+        localStorage.removeItem("tarefaEditando");
+
+        window.location.href = "../html/tarefas.html";
+      }
+
+      return;
+    }
+
+    // =================================================
+    // NOVA TAREFA
+    // =================================================
+
+    const novaTarefa = {
+      // Cria um ID único para a tarefa.
+      id: Date.now().toString() + "-" + Math.random().toString(16).slice(2),
+
+      titulo: titulo,
+
+      data: data,
+
+      importancia: importancia,
+
+      descricao: descricao,
+
+      concluida: false,
+
+      fixada: false,
+    };
+
+    const tarefasPorUsuario = obterTarefasSalvas();
+
+    const tarefasDoUsuario = tarefasPorUsuario[usuarioAtual.email] || [];
+
+    tarefasDoUsuario.push(novaTarefa);
+
+    tarefasPorUsuario[usuarioAtual.email] = tarefasDoUsuario;
+
+    salvarTarefasSalvas(tarefasPorUsuario);
+
+    window.location.href = "../html/tarefas.html";
+  });
+
+  // ========================================================
+  // BOTÃO CANCELAR
+  // ========================================================
+
+  const botaoCancelar = document.getElementById("cancelar-tarefa");
+
+  if (botaoCancelar) {
+    botaoCancelar.addEventListener("click", function () {
+      localStorage.removeItem("tarefaEditando");
+
+      window.location.href = "../html/tarefas.html";
+    });
+  }
 }
 
-// Preenche o formulario com os dados da tarefa que sera editada.
+// ============================================================
+// EDITAR TAREFA - CARREGAR
+// ============================================================
+
+// Preenche o formulário com os dados da tarefa.
 function carregarTarefaParaEdicao(id) {
-	const tarefa = obterTarefasDoUsuarioAtual().find(function (item) {
-		return item.id === id;
-	});
+  const tarefa = obterTarefasDoUsuarioAtual().find(function (item) {
+    return item.id === id;
+  });
 
-	if (!tarefa) {
-		localStorage.removeItem("tarefaEditando");
-		return;
-	}
+  if (!tarefa) {
+    localStorage.removeItem("tarefaEditando");
 
-	document.getElementById("titulo-tarefa").value = tarefa.titulo;
-	document.getElementById("data-tarefa").value = tarefa.data;
-	document.getElementById("importancia-tarefa").value = tarefa.importancia;
-	document.getElementById("descricao-tarefa").value = tarefa.descricao;
-	document.getElementById("titulo-pagina-tarefa").textContent = "Editar tarefa";
-	document.getElementById("titulo-formulario-tarefa").textContent = "Editar tarefa";
+    return;
+  }
+
+  document.getElementById("titulo-tarefa").value = tarefa.titulo;
+
+  document.getElementById("data-tarefa").value = tarefa.data;
+
+  document.getElementById("importancia-tarefa").value = tarefa.importancia;
+
+  document.getElementById("descricao-tarefa").value = tarefa.descricao;
+
+  const tituloPagina = document.getElementById("titulo-pagina-tarefa");
+
+  if (tituloPagina) {
+    tituloPagina.textContent = "Editar tarefa";
+  }
+
+  const tituloFormulario = document.getElementById("titulo-formulario-tarefa");
+
+  if (tituloFormulario) {
+    tituloFormulario.textContent = "Editar tarefa";
+  }
 }
 
-// Mostra as tarefas existentes da conta na lista lateral.
+// ============================================================
+// LISTA DE TAREFAS EXISTENTES
+// ============================================================
+
+// Mostra as tarefas existentes na lista lateral.
 function renderizarListaTarefasExistentes() {
-	const lista = document.getElementById("lista-tarefas-existentes");
-	const mensagemVazia = document.getElementById("sem-tarefas-existentes");
+  const lista = document.getElementById("lista-tarefas-existentes");
 
-	if (!lista || !mensagemVazia) {
-		return;
-	}
+  const mensagemVazia = document.getElementById("sem-tarefas-existentes");
 
-	const tarefas = obterTarefasDoUsuarioAtual().filter(function (tarefa) {
-		return !tarefa.concluida;
-	});
-	lista.innerHTML = "";
-	mensagemVazia.hidden = tarefas.length > 0;
+  if (!lista || !mensagemVazia) {
+    return;
+  }
 
-	tarefas.forEach(function (tarefa) {
-		const item = document.createElement("li");
-		item.className = "tarefa-existente";
+  const tarefas = obterTarefasDoUsuarioAtual().filter(function (tarefa) {
+    return !tarefa.concluida;
+  });
 
-		const titulo = document.createElement("strong");
-		titulo.textContent = tarefa.titulo;
+  lista.innerHTML = "";
 
-		const data = document.createElement("small");
-		data.textContent = formatarData(tarefa.data);
+  mensagemVazia.hidden = tarefas.length > 0;
 
-		item.appendChild(titulo);
-		item.appendChild(data);
-		lista.appendChild(item);
-	});
+  tarefas.forEach(function (tarefa) {
+    const item = document.createElement("li");
+
+    item.className = "tarefa-existente";
+
+    const titulo = document.createElement("strong");
+
+    titulo.textContent = tarefa.titulo;
+
+    const data = document.createElement("small");
+
+    data.textContent = formatarData(tarefa.data);
+
+    item.appendChild(titulo);
+
+    item.appendChild(data);
+
+    lista.appendChild(item);
+  });
 }
 
-// ==============================
-// LISTAGEM E FILTROS DE TAREFAS
-// ==============================
+// ============================================================
+// FILTROS
+// ============================================================
 
-// Prepara os botoes de importancia para filtrar os cards exibidos.
+// Prepara os botões de importância.
 function configurarFiltrosTarefas() {
-	document.querySelectorAll(".filtro").forEach(function (botao) {
-		botao.addEventListener("click", function () {
-			// Guardamos o filtro atual apenas para controlar a visualizacao.
-			filtroTarefasAtual = botao.dataset.filtro;
-			atualizarFiltroAtivo();
-			renderizarTarefas(filtroTarefasAtual);
-		});
-	});
+  document.querySelectorAll(".filtro").forEach(function (botao) {
+    botao.addEventListener("click", function () {
+      filtroTarefasAtual = botao.dataset.filtro;
 
-	// O filtro Todas começa selecionado quando a pagina abre.
-	atualizarFiltroAtivo();
+      atualizarFiltroAtivo();
+
+      renderizarTarefas(filtroTarefasAtual);
+    });
+  });
+
+  atualizarFiltroAtivo();
 }
 
-// Destaca visualmente somente o filtro que esta ativo.
+// Destaca visualmente o filtro ativo.
 function atualizarFiltroAtivo() {
-	document.querySelectorAll(".filtro").forEach(function (botao) {
-		const estaAtivo = botao.dataset.filtro === filtroTarefasAtual;
-		botao.classList.toggle("filtro-ativo", estaAtivo);
-		botao.setAttribute("aria-pressed", estaAtivo ? "true" : "false");
-	});
+  document.querySelectorAll(".filtro").forEach(function (botao) {
+    const estaAtivo = botao.dataset.filtro === filtroTarefasAtual;
+
+    botao.classList.toggle("filtro-ativo", estaAtivo);
+
+    botao.setAttribute("aria-pressed", estaAtivo ? "true" : "false");
+  });
 }
 
-// Mostra na pagina principal somente as tarefas da conta atual.
+// ============================================================
+// RENDERIZAR TAREFAS
+// ============================================================
+
+// Mostra as tarefas pendentes da conta atual.
 function renderizarTarefas(filtro) {
-	const lista = document.getElementById("lista-tarefas");
-	const modelo = document.getElementById("modelo-tarefa");
-	const mensagemVazia = document.getElementById("sem-tarefas");
+  const lista = document.getElementById("lista-tarefas");
 
-	if (!lista || !modelo || !mensagemVazia) {
-		return;
-	}
+  const modelo = document.getElementById("modelo-tarefa");
 
-	lista.querySelectorAll(".card-tarefa").forEach(function (card) {
-		card.remove();
-	});
+  const mensagemVazia = document.getElementById("sem-tarefas");
 
-	const tarefas = obterTarefasDoUsuarioAtual()
-		.filter(function (tarefa) {
-			return !tarefa.concluida && (filtro === "todas" || tarefa.importancia === filtro);
-		})
-		.sort(compararTarefas);
+  if (!lista || !modelo || !mensagemVazia) {
+    return;
+  }
 
-	mensagemVazia.hidden = tarefas.length > 0;
+  lista.querySelectorAll(".card-tarefa").forEach(function (card) {
+    card.remove();
+  });
 
-	tarefas.forEach(function (tarefa) {
-		const card = modelo.content.cloneNode(true);
-		const elementoCard = card.querySelector(".card-tarefa");
+  const tarefas = obterTarefasDoUsuarioAtual()
+    .filter(function (tarefa) {
+      return (
+        !tarefa.concluida &&
+        (filtro === "todas" || tarefa.importancia === filtro)
+      );
+    })
 
-		elementoCard.dataset.importancia = tarefa.importancia;
-		elementoCard.dataset.id = tarefa.id;
-		card.querySelector(".nome-tarefa").textContent = tarefa.titulo;
-		card.querySelector(".data-tarefa").textContent = formatarData(tarefa.data);
-		card.querySelector(".data-tarefa").dateTime = tarefa.data;
-		card.querySelector(".importancia-tarefa").textContent = "Importância: " + formatarImportancia(tarefa.importancia);
-		card.querySelector(".descricao-tarefa").textContent = tarefa.descricao || "Sem descrição.";
-		card.querySelector(".checkbox-conclusao").checked = tarefa.concluida;
-		card.querySelector(".botao-fixar").setAttribute("aria-pressed", tarefa.fixada ? "true" : "false");
-		card.querySelector(".botao-fixar").title = tarefa.fixada ? "Desafixar tarefa" : "Fixar tarefa";
+    .sort(compararTarefas);
 
-		if (tarefa.fixada) {
-			elementoCard.classList.add("tarefa-fixada");
-			card.querySelector(".botao-fixar").classList.add("fixar-ativo");
-		}
+  mensagemVazia.hidden = tarefas.length > 0;
 
-		configurarAcoesDoCard(card, tarefa);
-		lista.appendChild(card);
-	});
+  tarefas.forEach(function (tarefa) {
+    const card = modelo.content.cloneNode(true);
+
+    const elementoCard = card.querySelector(".card-tarefa");
+
+    elementoCard.dataset.importancia = tarefa.importancia;
+
+    elementoCard.dataset.id = tarefa.id;
+
+    card.querySelector(".nome-tarefa").textContent = tarefa.titulo;
+
+    card.querySelector(".data-tarefa").textContent = formatarData(tarefa.data);
+
+    card.querySelector(".data-tarefa").dateTime = tarefa.data;
+
+    card.querySelector(".importancia-tarefa").textContent =
+      "Importância: " + formatarImportancia(tarefa.importancia);
+
+    card.querySelector(".descricao-tarefa").textContent =
+      tarefa.descricao || "Sem descrição.";
+
+    card.querySelector(".checkbox-conclusao").checked = tarefa.concluida;
+
+    card
+      .querySelector(".botao-fixar")
+      .setAttribute("aria-pressed", tarefa.fixada ? "true" : "false");
+
+    card.querySelector(".botao-fixar").title = tarefa.fixada
+      ? "Desafixar tarefa"
+      : "Fixar tarefa";
+
+    if (tarefa.fixada) {
+      elementoCard.classList.add("tarefa-fixada");
+
+      card.querySelector(".botao-fixar").classList.add("fixar-ativo");
+    }
+
+    configurarAcoesDoCard(card, tarefa);
+
+    lista.appendChild(card);
+  });
 }
 
-// ==============================
-// ORGANIZACAO DAS TAREFAS
-// ==============================
+// ============================================================
+// ORGANIZAÇÃO DAS TAREFAS
+// ============================================================
 
-// Mantem tarefas fixadas primeiro e depois organiza por importancia.
+// Mantém tarefas fixadas primeiro e organiza por importância.
 function compararTarefas(primeiraTarefa, segundaTarefa) {
-	if (primeiraTarefa.fixada !== segundaTarefa.fixada) {
-		return primeiraTarefa.fixada ? -1 : 1;
-	}
+  if (primeiraTarefa.fixada !== segundaTarefa.fixada) {
+    return primeiraTarefa.fixada ? -1 : 1;
+  }
 
-	const pesos = { alta: 1, media: 2, baixa: 3 };
-	return (pesos[primeiraTarefa.importancia] || 4) - (pesos[segundaTarefa.importancia] || 4);
+  const pesos = {
+    alta: 1,
+
+    media: 2,
+
+    baixa: 3,
+  };
+
+  return (
+    (pesos[primeiraTarefa.importancia] || 4) -
+    (pesos[segundaTarefa.importancia] || 4)
+  );
 }
 
-// Atualiza uma tarefa da conta atual e depois redesenha a lista.
+// ============================================================
+// ALTERAR TAREFA
+// ============================================================
+
+// Atualiza uma tarefa da conta atual.
 function alterarTarefaAtual(id, alteracao) {
-	const usuarioAtual = obterUsuarioAtual();
+  const usuarioAtual = obterUsuarioAtual();
 
-	if (!usuarioAtual) {
-		return false;
-	}
+  if (!usuarioAtual) {
+    return false;
+  }
 
-	const tarefasPorUsuario = obterTarefasSalvas();
-	const tarefas = tarefasPorUsuario[usuarioAtual.email] || [];
-	const indice = tarefas.findIndex(function (tarefa) {
-		return tarefa.id === id;
-	});
+  const tarefasPorUsuario = obterTarefasSalvas();
 
-	if (indice === -1) {
-		return false;
-	}
+  const tarefas = tarefasPorUsuario[usuarioAtual.email] || [];
 
-	alteracao(tarefas[indice]);
-	tarefasPorUsuario[usuarioAtual.email] = tarefas;
-	salvarTarefasSalvas(tarefasPorUsuario);
-	return true;
+  const indice = tarefas.findIndex(function (tarefa) {
+    return tarefa.id === id;
+  });
+
+  if (indice === -1) {
+    return false;
+  }
+
+  alteracao(tarefas[indice]);
+
+  tarefasPorUsuario[usuarioAtual.email] = tarefas;
+
+  salvarTarefasSalvas(tarefasPorUsuario);
+
+  return true;
 }
 
-// Liga os quatro controles ao card correspondente.
+// ============================================================
+// AÇÕES DO CARD
+// ============================================================
+
+// Liga os controles ao card correspondente.
 function configurarAcoesDoCard(card, tarefa) {
-	const elementoCard = card.querySelector(".card-tarefa");
+  const elementoCard = card.querySelector(".card-tarefa");
 
-	card.querySelector(".botao-fixar").addEventListener("click", function () {
-		// ==============================
-		// FIXAR TAREFA
-		// ==============================
-		alterarTarefaAtual(tarefa.id, function (tarefaAtualizada) {
-			tarefaAtualizada.fixada = !tarefaAtualizada.fixada;
-		});
-		renderizarTarefas(filtroTarefasAtual);
-		renderizarCalendarios();
-	});
+  // ========================================================
+  // FIXAR
+  // ========================================================
 
-	card.querySelector(".checkbox-conclusao").addEventListener("change", function () {
-		concluirTarefa(tarefa.id);
-	});
+  card.querySelector(".botao-fixar").addEventListener("click", function () {
+    alterarTarefaAtual(tarefa.id, function (tarefaAtualizada) {
+      tarefaAtualizada.fixada = !tarefaAtualizada.fixada;
+    });
 
-	card.querySelector(".botao-editar").addEventListener("click", function () {
-		// ==============================
-		// EDITAR TAREFA
-		// ==============================
-		localStorage.setItem("tarefaEditando", tarefa.id);
-		window.location.href = "tarefa.html";
-	});
+    renderizarTarefas(filtroTarefasAtual);
 
-	card.querySelector(".botao-excluir").addEventListener("click", function () {
-		// ==============================
-		// EXCLUIR TAREFA
-		// ==============================
-		mostrarConfirmacaoExclusao(tarefa.id);
-	});
+    renderizarCalendarios();
+  });
 
-	// Permite que o teclado tambem identifique o card em foco.
-	elementoCard.setAttribute("tabindex", "0");
+  // ========================================================
+  // CONCLUIR
+  // ========================================================
+
+  card
+    .querySelector(".checkbox-conclusao")
+    .addEventListener("change", function () {
+      concluirTarefa(tarefa.id);
+    });
+
+  // ========================================================
+  // EDITAR
+  // ========================================================
+
+  card.querySelector(".botao-editar").addEventListener("click", function () {
+    localStorage.setItem("tarefaEditando", tarefa.id);
+
+    window.location.href = "tarefa.html";
+  });
+
+  // ========================================================
+  // EXCLUIR
+  // ========================================================
+
+  card.querySelector(".botao-excluir").addEventListener("click", function () {
+    mostrarConfirmacaoExclusao(tarefa.id);
+  });
+
+  // Permite foco pelo teclado.
+  elementoCard.setAttribute("tabindex", "0");
 }
 
-// ==============================
+// ============================================================
 // CONCLUIR TAREFA
-// ==============================
+// ============================================================
 
-// Marca a tarefa como concluida sem apagar seus dados.
+// Marca uma tarefa como concluída.
 function concluirTarefa(id) {
-	alterarTarefaAtual(id, function (tarefaAtualizada) {
-		tarefaAtualizada.concluida = true;
-	});
+  alterarTarefaAtual(id, function (tarefaAtualizada) {
+    tarefaAtualizada.concluida = true;
+  });
 
-	// Tarefas concluidas deixam de aparecer na lista de pendentes.
-	renderizarTarefas(filtroTarefasAtual);
-	renderizarCalendarios();
-	atualizarContadores();
+  renderizarTarefas(filtroTarefasAtual);
+
+  renderizarCalendarios();
+
+  atualizarContadores();
 }
 
-// Mostra uma confirmacao com os botoes Cancelar e Sim.
+// ============================================================
+// MODAL DE EXCLUSÃO
+// ============================================================
+
+// Mostra confirmação antes de excluir.
 function mostrarConfirmacaoExclusao(id) {
-	const modal = document.createElement("div");
-	modal.className = "modal-confirmacao";
+  const modal = document.createElement("div");
 
-	const conteudo = document.createElement("div");
-	conteudo.className = "conteudo-confirmacao";
+  modal.className = "modal-confirmacao";
 
-	const mensagem = document.createElement("p");
-	mensagem.textContent = "Tem certeza?";
+  const conteudo = document.createElement("div");
 
-	const acoes = document.createElement("div");
-	acoes.className = "acoes-confirmacao";
+  conteudo.className = "conteudo-confirmacao";
 
-	const cancelar = document.createElement("button");
-	cancelar.type = "button";
-	cancelar.className = "botao-cancelar-exclusao";
-	cancelar.textContent = "Cancelar";
+  const mensagem = document.createElement("p");
 
-	const confirmar = document.createElement("button");
-	confirmar.type = "button";
-	confirmar.className = "botao-confirmar-exclusao";
-	confirmar.textContent = "Sim";
+  mensagem.textContent = "Tem certeza?";
 
-	cancelar.addEventListener("click", function () {
-		modal.remove();
-	});
+  const acoes = document.createElement("div");
 
-	confirmar.addEventListener("click", function () {
-		excluirTarefa(id);
-		modal.remove();
-	});
+  acoes.className = "acoes-confirmacao";
 
-	acoes.appendChild(cancelar);
-	acoes.appendChild(confirmar);
-	conteudo.appendChild(mensagem);
-	conteudo.appendChild(acoes);
-	modal.appendChild(conteudo);
-	document.body.appendChild(modal);
-	cancelar.focus();
+  const cancelar = document.createElement("button");
+
+  cancelar.type = "button";
+
+  cancelar.className = "botao-cancelar-exclusao";
+
+  cancelar.textContent = "Cancelar";
+
+  const confirmar = document.createElement("button");
+
+  confirmar.type = "button";
+
+  confirmar.className = "botao-confirmar-exclusao";
+
+  confirmar.textContent = "Sim";
+
+  cancelar.addEventListener("click", function () {
+    modal.remove();
+  });
+
+  confirmar.addEventListener("click", function () {
+    excluirTarefa(id);
+
+    modal.remove();
+  });
+
+  acoes.appendChild(cancelar);
+
+  acoes.appendChild(confirmar);
+
+  conteudo.appendChild(mensagem);
+
+  conteudo.appendChild(acoes);
+
+  modal.appendChild(conteudo);
+
+  document.body.appendChild(modal);
+
+  cancelar.focus();
 }
 
-// Remove permanentemente somente a tarefa da conta atual.
+// ============================================================
+// EXCLUIR TAREFA
+// ============================================================
+
+// Remove somente a tarefa da conta atual.
 function excluirTarefa(id) {
-	const usuarioAtual = obterUsuarioAtual();
+  const usuarioAtual = obterUsuarioAtual();
 
-	if (!usuarioAtual) {
-		return;
-	}
+  if (!usuarioAtual) {
+    return;
+  }
 
-	const tarefasPorUsuario = obterTarefasSalvas();
-	const tarefas = tarefasPorUsuario[usuarioAtual.email] || [];
-	tarefasPorUsuario[usuarioAtual.email] = tarefas.filter(function (tarefa) {
-		return tarefa.id !== id;
-	});
+  const tarefasPorUsuario = obterTarefasSalvas();
 
-	salvarTarefasSalvas(tarefasPorUsuario);
-	renderizarTarefas(filtroTarefasAtual);
-	renderizarTarefasConcluidas();
-	renderizarListaTarefasExistentes();
-	renderizarCalendarios();
-	atualizarContadores();
+  const tarefas = tarefasPorUsuario[usuarioAtual.email] || [];
+
+  tarefasPorUsuario[usuarioAtual.email] = tarefas.filter(function (tarefa) {
+    return tarefa.id !== id;
+  });
+
+  salvarTarefasSalvas(tarefasPorUsuario);
+
+  renderizarTarefas(filtroTarefasAtual);
+
+  renderizarTarefasConcluidas();
+
+  renderizarListaTarefasExistentes();
+
+  renderizarCalendarios();
+
+  atualizarContadores();
 }
 
-// ==============================
-// TAREFAS CONCLUIDAS
-// ==============================
+// ============================================================
+// TAREFAS CONCLUÍDAS
+// ============================================================
 
-// Renderiza somente as tarefas concluidas da conta atual.
+// Renderiza somente as tarefas concluídas.
 function renderizarTarefasConcluidas() {
-	const lista = document.getElementById("lista-tarefas-concluidas");
-	const mensagemVazia = document.getElementById("sem-tarefas-concluidas");
-	const quantidade = document.getElementById("quantidade-concluidas");
+  const lista = document.getElementById("lista-tarefas-concluidas");
 
-	if (!lista || !mensagemVazia || !quantidade) {
-		return;
-	}
+  const mensagemVazia = document.getElementById("sem-tarefas-concluidas");
 
-	const tarefas = obterTarefasDoUsuarioAtual().filter(function (tarefa) {
-		return tarefa.concluida;
-	});
+  const quantidade = document.getElementById("quantidade-concluidas");
 
-	lista.innerHTML = "";
-	quantidade.textContent = tarefas.length;
-	mensagemVazia.hidden = tarefas.length > 0;
+  if (!lista || !mensagemVazia || !quantidade) {
+    return;
+  }
 
-	tarefas.forEach(function (tarefa) {
-		const card = document.createElement("article");
-		card.className = "tarefa-concluida";
+  const tarefas = obterTarefasDoUsuarioAtual().filter(function (tarefa) {
+    return tarefa.concluida;
+  });
 
-		const titulo = document.createElement("h2");
-		titulo.textContent = tarefa.titulo;
+  lista.innerHTML = "";
 
-		const meta = document.createElement("p");
-		meta.className = "meta-tarefa";
-		meta.textContent = formatarData(tarefa.data) + " • " + formatarImportancia(tarefa.importancia);
+  quantidade.textContent = tarefas.length;
 
-		const descricao = document.createElement("p");
-		descricao.className = "descricao-tarefa-concluida";
-		descricao.textContent = tarefa.descricao || "Sem descrição.";
+  mensagemVazia.hidden = tarefas.length > 0;
 
-		const excluir = document.createElement("button");
-		excluir.type = "button";
-		excluir.className = "botao-excluir-concluida";
-		excluir.textContent = "Excluir";
-		excluir.addEventListener("click", function () {
-			mostrarConfirmacaoExclusao(tarefa.id);
-		});
+  tarefas.forEach(function (tarefa) {
+    const card = document.createElement("article");
 
-		card.appendChild(titulo);
-		card.appendChild(meta);
-		card.appendChild(descricao);
-		card.appendChild(excluir);
-		lista.appendChild(card);
-	});
+    card.className = "tarefa-concluida";
+
+    const titulo = document.createElement("h2");
+
+    titulo.textContent = tarefa.titulo;
+
+    const meta = document.createElement("p");
+
+    meta.className = "meta-tarefa";
+
+    meta.textContent =
+      formatarData(tarefa.data) +
+      " • " +
+      formatarImportancia(tarefa.importancia);
+
+    const descricao = document.createElement("p");
+
+    descricao.className = "descricao-tarefa-concluida";
+
+    descricao.textContent = tarefa.descricao || "Sem descrição.";
+
+    const excluir = document.createElement("button");
+
+    excluir.type = "button";
+
+    excluir.className = "botao-excluir-concluida";
+
+    excluir.textContent = "Excluir";
+
+    excluir.addEventListener("click", function () {
+      mostrarConfirmacaoExclusao(tarefa.id);
+    });
+
+    card.appendChild(titulo);
+
+    card.appendChild(meta);
+
+    card.appendChild(descricao);
+
+    card.appendChild(excluir);
+
+    lista.appendChild(card);
+  });
 }
 
-// Converte a data do input para o formato usado na tela.
+// ============================================================
+// FORMATAÇÃO
+// ============================================================
+
+// Converte YYYY-MM-DD para DD/MM/YYYY.
 function formatarData(data) {
-	if (!data) {
-		return "Sem data";
-	}
+  if (!data) {
+    return "Sem data";
+  }
 
-	const partes = data.split("-");
-	return partes.length === 3 ? partes[2] + "/" + partes[1] + "/" + partes[0] : data;
+  const partes = data.split("-");
+
+  return partes.length === 3
+    ? partes[2] + "/" + partes[1] + "/" + partes[0]
+    : data;
 }
 
-// Mostra a importancia com a primeira letra maiuscula.
+// Mostra a importância com a primeira letra maiúscula.
 function formatarImportancia(importancia) {
-	const nomes = {
-		alta: "Alta",
-		media: "Média",
-		baixa: "Baixa"
-	};
+  const nomes = {
+    alta: "Alta",
 
-	return nomes[importancia] || importancia;
+    media: "Média",
+
+    baixa: "Baixa",
+  };
+
+  return nomes[importancia] || importancia;
 }
 
-// ==============================
-// CALENDARIO
-// ==============================
+// ============================================================
+// CALENDÁRIO
+// ============================================================
 
-// Cria um calendario dentro da area que ja existe no HTML.
+// Cria um calendário dentro da área existente.
 function configurarCalendario(idArea, sincronizarFormulario) {
-	const area = document.getElementById(idArea);
+  const area = document.getElementById(idArea);
 
-	if (!area) {
-		return;
-	}
+  if (!area) {
+    return;
+  }
 
-	const entradaData = sincronizarFormulario ? document.getElementById("data-tarefa") : null;
-	let dataInicial = entradaData && entradaData.value ? criarDataLocal(entradaData.value) : new Date();
+  const entradaData = sincronizarFormulario
+    ? document.getElementById("data-tarefa")
+    : null;
 
-	const calendario = {
-		area: area,
-		ano: dataInicial.getFullYear(),
-		mes: dataInicial.getMonth(),
-		entradaData: entradaData,
-		sincronizarFormulario: sincronizarFormulario
-	};
+  let dataInicial =
+    entradaData && entradaData.value
+      ? criarDataLocal(entradaData.value)
+      : new Date();
 
-	calendariosAtivos.push(calendario);
-	renderizarCalendario(calendario);
+  const calendario = {
+    area: area,
 
-	if (entradaData) {
-		entradaData.addEventListener("change", function () {
-			if (!entradaData.value) {
-				return;
-			}
+    ano: dataInicial.getFullYear(),
 
-			const dataSelecionada = criarDataLocal(entradaData.value);
-			calendario.ano = dataSelecionada.getFullYear();
-			calendario.mes = dataSelecionada.getMonth();
-			renderizarCalendario(calendario);
-		});
-	}
+    mes: dataInicial.getMonth(),
+
+    entradaData: entradaData,
+
+    sincronizarFormulario: sincronizarFormulario,
+  };
+
+  calendariosAtivos.push(calendario);
+
+  renderizarCalendario(calendario);
+
+  if (entradaData) {
+    entradaData.addEventListener("change", function () {
+      if (!entradaData.value) {
+        return;
+      }
+
+      const dataSelecionada = criarDataLocal(entradaData.value);
+
+      calendario.ano = dataSelecionada.getFullYear();
+
+      calendario.mes = dataSelecionada.getMonth();
+
+      renderizarCalendario(calendario);
+    });
+  }
 }
 
-// Redesenha todos os calendarios depois de uma alteracao nas tarefas.
+// Redesenha todos os calendários.
 function renderizarCalendarios() {
-	calendariosAtivos.forEach(function (calendario) {
-		renderizarCalendario(calendario);
-	});
+  calendariosAtivos.forEach(function (calendario) {
+    renderizarCalendario(calendario);
+  });
 }
 
-// Monta o mes atual, os botoes de navegacao e os dias marcados.
+// Monta o mês, navegação e dias.
 function renderizarCalendario(calendario) {
-	const tarefas = obterTarefasDoUsuarioAtual();
-	const tarefasPorData = {};
+  const tarefas = obterTarefasDoUsuarioAtual();
 
-	tarefas.forEach(function (tarefa) {
-		if (tarefa.data) {
-			tarefasPorData[tarefa.data] = true;
-		}
-	});
+  const tarefasPorData = {};
 
-	calendario.area.innerHTML = "";
+  tarefas.forEach(function (tarefa) {
+    if (tarefa.data) {
+      tarefasPorData[tarefa.data] = true;
+    }
+  });
 
-	const controles = document.createElement("div");
-	controles.className = "calendario-controles";
+  calendario.area.innerHTML = "";
 
-	const anterior = document.createElement("button");
-	anterior.type = "button";
-	anterior.className = "mes-anterior";
-	anterior.textContent = "‹";
-	anterior.setAttribute("aria-label", "Mes anterior");
-	anterior.addEventListener("click", function () {
-		calendario.mes -= 1;
-		ajustarMesCalendario(calendario);
-		renderizarCalendario(calendario);
-	});
+  const controles = document.createElement("div");
 
-	const titulo = document.createElement("h3");
-	titulo.textContent = new Date(calendario.ano, calendario.mes, 1).toLocaleDateString("pt-BR", {
-		month: "long",
-		year: "numeric"
-	});
+  controles.className = "calendario-controles";
 
-	const proximo = document.createElement("button");
-	proximo.type = "button";
-	proximo.className = "mes-proximo";
-	proximo.textContent = "›";
-	proximo.setAttribute("aria-label", "Proximo mes");
-	proximo.addEventListener("click", function () {
-		calendario.mes += 1;
-		ajustarMesCalendario(calendario);
-		renderizarCalendario(calendario);
-	});
+  const anterior = document.createElement("button");
 
-	controles.appendChild(anterior);
-	controles.appendChild(titulo);
-	controles.appendChild(proximo);
+  anterior.type = "button";
 
-	const nomesDias = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
-	const grade = document.createElement("div");
-	grade.className = "calendario-grade";
+  anterior.className = "mes-anterior";
 
-	nomesDias.forEach(function (nomeDia) {
-		const cabecalhoDia = document.createElement("span");
-		cabecalhoDia.className = "calendario-dia-semana";
-		cabecalhoDia.textContent = nomeDia;
-		grade.appendChild(cabecalhoDia);
-	});
+  anterior.textContent = "‹";
 
-	const primeiroDia = new Date(calendario.ano, calendario.mes, 1).getDay();
-	const totalDias = new Date(calendario.ano, calendario.mes + 1, 0).getDate();
-	const hoje = dataParaChave(new Date());
-	const dataSelecionada = calendario.entradaData ? calendario.entradaData.value : "";
+  anterior.setAttribute("aria-label", "Mês anterior");
 
-	for (let vazio = 0; vazio < primeiroDia; vazio += 1) {
-		const espaco = document.createElement("span");
-		espaco.className = "calendario-dia vazio";
-		grade.appendChild(espaco);
-	}
+  anterior.addEventListener("click", function () {
+    calendario.mes -= 1;
 
-	for (let dia = 1; dia <= totalDias; dia += 1) {
-		const data = new Date(calendario.ano, calendario.mes, dia);
-		const chave = dataParaChave(data);
-		const botaoDia = document.createElement("button");
-		botaoDia.type = "button";
-		botaoDia.className = "calendario-dia";
-		botaoDia.textContent = dia;
-		botaoDia.dataset.data = chave;
+    ajustarMesCalendario(calendario);
 
-		if (chave === hoje) {
-			botaoDia.classList.add("dia-atual");
-		}
+    renderizarCalendario(calendario);
+  });
 
-		if (tarefasPorData[chave]) {
-			botaoDia.classList.add("dia-com-tarefa");
-		}
+  const titulo = document.createElement("h3");
 
-		if (chave === dataSelecionada) {
-			botaoDia.classList.add("dia-selecionado");
-		}
+  titulo.textContent = new Date(
+    calendario.ano,
+    calendario.mes,
+    1,
+  ).toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+  });
 
-		if (calendario.sincronizarFormulario) {
-			botaoDia.addEventListener("click", function () {
-				calendario.entradaData.value = chave;
-				calendario.ano = data.getFullYear();
-				calendario.mes = data.getMonth();
-				renderizarCalendario(calendario);
-			});
-		}
+  const proximo = document.createElement("button");
 
-		grade.appendChild(botaoDia);
-	}
+  proximo.type = "button";
 
-	calendario.area.appendChild(controles);
-	calendario.area.appendChild(grade);
+  proximo.className = "mes-proximo";
+
+  proximo.textContent = "›";
+
+  proximo.setAttribute("aria-label", "Próximo mês");
+
+  proximo.addEventListener("click", function () {
+    calendario.mes += 1;
+
+    ajustarMesCalendario(calendario);
+
+    renderizarCalendario(calendario);
+  });
+
+  controles.appendChild(anterior);
+
+  controles.appendChild(titulo);
+
+  controles.appendChild(proximo);
+
+  const nomesDias = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+  const grade = document.createElement("div");
+
+  grade.className = "calendario-grade";
+
+  nomesDias.forEach(function (nomeDia) {
+    const cabecalhoDia = document.createElement("span");
+
+    cabecalhoDia.className = "calendario-dia-semana";
+
+    cabecalhoDia.textContent = nomeDia;
+
+    grade.appendChild(cabecalhoDia);
+  });
+
+  const primeiroDia = new Date(calendario.ano, calendario.mes, 1).getDay();
+
+  const totalDias = new Date(calendario.ano, calendario.mes + 1, 0).getDate();
+
+  const hoje = dataParaChave(new Date());
+
+  const dataSelecionada = calendario.entradaData
+    ? calendario.entradaData.value
+    : "";
+
+  // Cria espaços antes do primeiro dia.
+  for (let vazio = 0; vazio < primeiroDia; vazio += 1) {
+    const espaco = document.createElement("span");
+
+    espaco.className = "calendario-dia vazio";
+
+    grade.appendChild(espaco);
+  }
+
+  // Cria os dias do mês.
+  for (let dia = 1; dia <= totalDias; dia += 1) {
+    const data = new Date(calendario.ano, calendario.mes, dia);
+
+    const chave = dataParaChave(data);
+
+    const botaoDia = document.createElement("button");
+
+    botaoDia.type = "button";
+
+    botaoDia.className = "calendario-dia";
+
+    botaoDia.textContent = dia;
+
+    botaoDia.dataset.data = chave;
+
+    // Destaca o dia atual.
+    if (chave === hoje) {
+      botaoDia.classList.add("dia-atual");
+    }
+
+    // Destaca dias que possuem tarefas.
+    if (tarefasPorData[chave]) {
+      botaoDia.classList.add("dia-com-tarefa");
+    }
+
+    // Destaca a data selecionada.
+    if (chave === dataSelecionada) {
+      botaoDia.classList.add("dia-selecionado");
+    }
+
+    // Se for o calendário do formulário,
+    // permite selecionar uma data.
+    if (calendario.sincronizarFormulario) {
+      botaoDia.addEventListener("click", function () {
+        calendario.entradaData.value = chave;
+
+        calendario.ano = data.getFullYear();
+
+        calendario.mes = data.getMonth();
+
+        renderizarCalendario(calendario);
+      });
+    }
+
+    grade.appendChild(botaoDia);
+  }
+
+  calendario.area.appendChild(controles);
+
+  calendario.area.appendChild(grade);
 }
 
-// Mantem o mes entre janeiro e dezembro ao navegar.
+// Mantém o mês entre janeiro e dezembro.
 function ajustarMesCalendario(calendario) {
-	while (calendario.mes < 0) {
-		calendario.mes += 12;
-		calendario.ano -= 1;
-	}
+  while (calendario.mes < 0) {
+    calendario.mes += 12;
 
-	while (calendario.mes > 11) {
-		calendario.mes -= 12;
-		calendario.ano += 1;
-	}
+    calendario.ano -= 1;
+  }
+
+  while (calendario.mes > 11) {
+    calendario.mes -= 12;
+
+    calendario.ano += 1;
+  }
 }
 
-// Converte uma data YYYY-MM-DD em uma data local sem deslocamento de fuso.
+// Converte YYYY-MM-DD para uma data local.
 function criarDataLocal(data) {
-	const partes = data.split("-").map(Number);
-	return new Date(partes[0], partes[1] - 1, partes[2]);
+  const partes = data.split("-").map(Number);
+
+  return new Date(partes[0], partes[1] - 1, partes[2]);
 }
 
-// Converte Date para a mesma chave usada pelo input de data.
+// Converte Date para YYYY-MM-DD.
 function dataParaChave(data) {
-	const ano = data.getFullYear();
-	const mes = String(data.getMonth() + 1).padStart(2, "0");
-	const dia = String(data.getDate()).padStart(2, "0");
-	return ano + "-" + mes + "-" + dia;
+  const ano = data.getFullYear();
+
+  const mes = String(data.getMonth() + 1).padStart(2, "0");
+
+  const dia = String(data.getDate()).padStart(2, "0");
+
+  return ano + "-" + mes + "-" + dia;
 }

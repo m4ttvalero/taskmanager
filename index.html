@@ -1,32 +1,96 @@
 <!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <link rel="stylesheet" href="css/estilo.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Task Manager</title>
-</head>
-<body>
-    
-    <div class="container">
-        <h1>Bem-vindo ao Task Manager</h1>
-        <p>Gerencie suas tarefas de forma eficiente e organizada.</p>
-    </div>
 
-    <div class="login">
-        <h2>Login ou faça seu Cadastro</h2>
-        <form action="login.php" method="post">
-            <label for="username">Nome de Usuário:</label>
-            <input type="text" id="username" name="username" placeholder="Dados fictícios" required>
-            <br>
-            <label for="password">Senha:</label>
-            <input type="password" id="password" name="password" placeholder="Dados fictícios" required>
-            <br>
-            <button type="submit">Entrar</button>
-            <button type="button" onclick="window.location.href='html/cadastro.html'">Cadastrar</button>
-        </form>
-    </div>
-    
-    <script src="js/script.js"></script>
+<html lang="pt-BR">
+
+<head>
+
+```
+<meta charset="UTF-8">
+
+<link rel="stylesheet" href="css/estilo.css">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Task Manager</title>
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Bem-vindo ao Task Manager</h1>
+
+    <p>Gerencie suas tarefas de forma eficiente e organizada.</p>
+
+</div>
+
+
+<div class="login">
+
+    <h2>Login ou faça seu Cadastro</h2>
+
+
+    <!-- Formulário utilizado para realizar o login -->
+
+    <form action="login.php" method="post">
+
+
+        <!-- Campo onde o usuário informa o e-mail -->
+
+        <label for="username">E-mail:</label>
+
+        <input
+            type="email"
+            id="username"
+            name="username"
+            placeholder="Digite seu e-mail"
+            required
+        >
+
+        <br>
+
+
+        <!-- Campo onde o usuário informa a senha -->
+
+        <label for="password">Senha:</label>
+
+        <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="Digite sua senha"
+            required
+        >
+
+        <br>
+
+
+        <!-- Botão responsável por enviar o formulário -->
+
+        <button type="submit">
+            Entrar
+        </button>
+
+
+        <!-- Botão que leva para a página de cadastro -->
+
+        <button
+            type="button"
+            onclick="window.location.href='html/cadastro.html'"
+        >
+            Cadastrar
+        </button>
+
+    </form>
+
+</div>
+
+
+<!-- JavaScript principal do Task Manager -->
+
+<script src="js/script.js"></script>
+
 </body>
+
 </html>

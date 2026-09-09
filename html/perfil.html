@@ -1,52 +1,169 @@
 <!DOCTYPE html>
-<html lang="en">
+
+<html lang="pt-BR">
+
 <head>
+
     <meta charset="UTF-8">
+
     <link rel="stylesheet" href="../css/perfil.css">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Perfil</title>
+
 </head>
+
 <body>
 
-     <main class="pagina-perfil">
+    <main class="pagina-perfil">
 
         <a href="tarefas.html" class="voltar">Voltar</a>
 
         <section class="perfil-container">
 
             <div class="perfil-imagem">
+
                 <img src="../img/perfil.png" alt="Ícone de perfil">
+
             </div>
 
             <h1>Meu Perfil</h1>
 
+
+            <!-- =====================================================
+                 INFORMAÇÕES DO PERFIL
+                 ===================================================== -->
+
             <div class="informacoes-perfil">
 
                 <div class="informacao">
+
                     <span>Nome</span>
+
                     <p id="nomePerfil">Nome do usuário</p>
+
                 </div>
 
+
                 <div class="informacao">
+
                     <span>E-mail</span>
+
                     <p id="emailPerfil">email@exemplo.com</p>
+
                 </div>
 
+
                 <div class="informacao">
+
                     <span>Total de tarefas</span>
+
                     <p id="total-tarefas">0</p>
+
                 </div>
 
+
                 <div class="informacao">
+
                     <span>Tarefas concluídas</span>
+
                     <p id="tarefas-concluidas">0</p>
+
                 </div>
 
             </div>
 
+
+            <!-- =====================================================
+                 ÁREA DE EDIÇÃO DO PERFIL
+                 ===================================================== -->
+
+            <div id="area-editar-perfil" hidden>
+
+                <h2>Editar perfil</h2>
+
+
+                <!-- =================================================
+                     MENSAGEM DE SUCESSO
+                     Fica escondida até o perfil ser atualizado
+                     ================================================= -->
+
+                <div id="mensagem-perfil" hidden></div>
+
+
+                <form id="formulario-editar-perfil">
+
+                    <div class="campo-editar-perfil">
+
+                        <label for="nome-editar">Nome</label>
+
+                        <input
+                            type="text"
+                            id="nome-editar"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="campo-editar-perfil">
+
+                        <label for="email-editar">E-mail</label>
+
+                        <input
+                            type="email"
+                            id="email-editar"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="acoes-editar-perfil">
+
+                        <button
+                            type="submit"
+                            id="salvar-perfil"
+                        >
+                            Salvar alterações
+                        </button>
+
+
+                        <button
+                            type="button"
+                            id="cancelar-edicao-perfil"
+                        >
+                            Cancelar
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+
+            <!-- =====================================================
+                 AÇÕES DO PERFIL
+                 ===================================================== -->
+
             <div class="acoes-perfil">
 
-                <button id="sair">Sair</button>
+                <button
+                    type="button"
+                    id="editar-perfil"
+                >
+                    Editar perfil
+                </button>
+
+
+                <button
+                    type="button"
+                    id="sair"
+                >
+                    Sair
+                </button>
 
             </div>
 
@@ -54,8 +171,10 @@
 
     </main>
 
+
+    <!-- JavaScript principal do Task Manager -->
     <script src="../js/script.js"></script>
 
-    
 </body>
+
 </html>

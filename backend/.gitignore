@@ -1,0 +1,5 @@
+# Impede que as dependências do Node sejam enviadas ao GitHub
+node_modules/
+
+# Impede que as senhas e configurações do ambiente sejam enviadas ao GitHub
+.env
