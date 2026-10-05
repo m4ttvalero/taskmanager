@@ -1,0 +1,1 @@
+window.TASK_MANAGER_API_URL = "";

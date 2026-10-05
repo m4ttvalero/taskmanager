@@ -9,41 +9,6 @@ const jwt = require("jsonwebtoken");
 
 
 // ============================================================
-// BUSCAR USUÁRIOS
-// ============================================================
-
-// Função responsável por buscar todos os usuários
-function buscarUsuarios(req, res) {
-
-    // Busca somente os dados públicos dos usuários
-    // A senha não é selecionada nem enviada pela API
-    const sql = `
-        SELECT id, nome, email
-        FROM usuarios
-    `;
-
-    // Executa a consulta no banco de dados
-    conexao.query(sql, (erro, resultados) => {
-
-        // Verifica se aconteceu algum erro
-        if (erro) {
-
-            // Mostra o erro no terminal do servidor
-            console.error("Erro ao buscar usuários:", erro.message);
-
-            // Envia uma resposta de erro para o cliente
-            return res.status(500).json({
-                erro: "Erro ao buscar usuários"
-            });
-        }
-
-        // Envia os usuários encontrados como resposta JSON
-        res.json(resultados);
-    });
-}
-
-
-// ============================================================
 // BUSCAR O PRÓPRIO USUÁRIO
 // ============================================================
 
@@ -103,14 +68,20 @@ function atualizarMeuPerfil(req, res) {
     const usuarioId = req.usuario.id;
 
     // Pega os novos dados enviados pelo cliente
-    const { nome, email } = req.body;
+    const { nome, email } = req.body || {};
 
-    // Verifica se os campos obrigatórios foram preenchidos
-    if (!nome || !email) {
+    const nomeNormalizado = typeof nome === "string" ? nome.trim() : "";
+    const emailNormalizado = typeof email === "string" ? email.trim().toLowerCase() : "";
 
-        // Interrompe a execução e informa o problema
+    if (
+        !nomeNormalizado ||
+        nomeNormalizado.length > 100 ||
+        emailNormalizado.length > 254 ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNormalizado)
+    ) {
+
         return res.status(400).json({
-            erro: "Nome e e-mail são obrigatórios"
+            erro: "Informe um nome válido e um e-mail válido"
         });
     }
 
@@ -126,7 +97,7 @@ function atualizarMeuPerfil(req, res) {
     // Executa a atualização no banco de dados
     conexao.query(
         sql,
-        [nome, email, usuarioId],
+        [nomeNormalizado, emailNormalizado, usuarioId],
         (erro, resultado) => {
 
             // Verifica se aconteceu algum erro
@@ -180,20 +151,29 @@ function atualizarMeuPerfil(req, res) {
 async function cadastrarUsuario(req, res) {
 
     // Pega os dados enviados pelo cliente
-    const { nome, email, senha } = req.body;
+    const { nome, email, senha } = req.body || {};
 
-    // Verifica se algum campo obrigatório não foi preenchido
-    if (!nome || !email || !senha) {
+    const nomeNormalizado = typeof nome === "string" ? nome.trim() : "";
+    const emailNormalizado = typeof email === "string" ? email.trim().toLowerCase() : "";
 
-        // Interrompe a execução e informa o problema
+    if (
+        !nomeNormalizado ||
+        nomeNormalizado.length > 100 ||
+        emailNormalizado.length > 254 ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNormalizado) ||
+        typeof senha !== "string" ||
+        senha.length < 8 ||
+        Buffer.byteLength(senha, "utf8") > 72
+    ) {
+
         return res.status(400).json({
-            erro: "Nome, e-mail e senha são obrigatórios"
+            erro: "Informe nome e e-mail válidos e senha com 8 a 72 bytes"
         });
     }
 
     // Transforma a senha original em um hash
     // A senha verdadeira não será salva no banco
-    const senhaHash = await bcrypt.hash(senha, 10);
+    const senhaHash = await bcrypt.hash(senha, 12);
 
     // Comando SQL utilizado para inserir o novo usuário
     const sql = `
@@ -205,7 +185,7 @@ async function cadastrarUsuario(req, res) {
     // Os valores são enviados separadamente para maior segurança
     conexao.query(
         sql,
-        [nome, email, senhaHash],
+        [nomeNormalizado, emailNormalizado, senhaHash],
         (erro, resultado) => {
 
             // Verifica se aconteceu algum erro no banco
@@ -250,10 +230,15 @@ async function cadastrarUsuario(req, res) {
 async function fazerLogin(req, res) {
 
     // Pega o e-mail e a senha enviados pelo cliente
-    const { email, senha } = req.body;
+    const { email, senha } = req.body || {};
+    const emailNormalizado = typeof email === "string" ? email.trim().toLowerCase() : "";
 
-    // Verifica se os dois campos foram preenchidos
-    if (!email || !senha) {
+    if (
+        !emailNormalizado ||
+        emailNormalizado.length > 254 ||
+        typeof senha !== "string" ||
+        Buffer.byteLength(senha, "utf8") > 72
+    ) {
 
         // Interrompe a execução se algum campo estiver faltando
         return res.status(400).json({
@@ -272,7 +257,7 @@ async function fazerLogin(req, res) {
     // Executa a consulta utilizando o e-mail recebido
     conexao.query(
         sql,
-        [email],
+        [emailNormalizado],
         async (erro, resultados) => {
 
             // Verifica se aconteceu algum erro na consulta
@@ -303,11 +288,13 @@ async function fazerLogin(req, res) {
             // Guarda o usuário encontrado no banco
             const usuario = resultados[0];
 
-            // Compara a senha digitada com o hash armazenado
-            const senhaCorreta = await bcrypt.compare(
-                senha,
-                usuario.senha
-            );
+            let senhaCorreta;
+            try {
+                senhaCorreta = await bcrypt.compare(senha, usuario.senha);
+            } catch (erro) {
+                console.error("Erro ao verificar senha:", erro.message);
+                return res.status(500).json({ erro: "Erro ao fazer login" });
+            }
 
             // Verifica se a senha não corresponde ao hash
             if (!senhaCorreta) {
@@ -367,7 +354,6 @@ async function fazerLogin(req, res) {
 
 // Exporta as funções para serem utilizadas pelas rotas
 module.exports = {
-    buscarUsuarios,
     buscarMeuPerfil,
     atualizarMeuPerfil,
     cadastrarUsuario,

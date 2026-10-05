@@ -189,6 +189,72 @@ button:focus-visible {
     border-color: var(--verde);
 }
 
+.area-sugestoes {
+    padding: 20px 18px;
+    background: var(--card);
+    border: 1px solid var(--borda);
+    border-radius: 12px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+}
+
+.area-sugestoes h2 {
+    margin: 0 0 14px;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.area-sugestoes form {
+    display: grid;
+    gap: 9px;
+}
+
+.area-sugestoes label {
+    color: var(--texto-secundario);
+    font-size: 0.85rem;
+}
+
+.area-sugestoes textarea {
+    width: 100%;
+    min-width: 0;
+    resize: vertical;
+    padding: 10px;
+    background: var(--secundaria);
+    border: 1px solid var(--borda);
+    border-radius: 6px;
+    color: var(--texto);
+    font: inherit;
+    font-size: 0.85rem;
+}
+
+.area-sugestoes textarea:focus-visible {
+    outline: 2px solid var(--foco);
+    outline-offset: 2px;
+}
+
+.area-sugestoes form button {
+    min-height: 38px;
+    padding: 8px 10px;
+    background: var(--botao);
+    border: 1px solid var(--botao);
+    border-radius: 6px;
+    color: var(--texto-botao);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.area-sugestoes form button:disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
+
+.status-feedback {
+    min-height: 1.2em;
+    margin: 0;
+    color: var(--texto-secundario);
+    font-size: 0.8rem;
+}
+
 
 /* ==============================
    ÁREA DE TAREFAS
@@ -340,9 +406,23 @@ button:focus-visible {
 }
 
 .botao-fixar.fixar-ativo {
-    background: rgba(208, 208, 208, 0.14);
-    border-color: var(--foco);
-    color: var(--texto);
+    background: rgba(76, 175, 112, 0.2);
+    border-color: var(--verde);
+    color: #a7e3b8;
+    opacity: 1;
+}
+
+.card-tarefa.tarefa-fixada {
+    border-left: 4px solid var(--verde);
+    background: #29332d;
+    box-shadow: inset 0 0 0 1px rgba(76, 175, 112, 0.18), 0 8px 18px rgba(0, 0, 0, 0.16);
+}
+
+.card-tarefa.tarefa-fixada .nome-tarefa::before {
+    content: "Fixada · ";
+    color: #a7e3b8;
+    font-size: 0.78rem;
+    font-weight: 700;
 }
 
 .botao-excluir:hover {

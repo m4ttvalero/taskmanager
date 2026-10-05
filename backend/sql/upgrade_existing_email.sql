@@ -1,0 +1,2 @@
+ALTER TABLE usuarios
+    MODIFY email VARCHAR(254) NOT NULL;

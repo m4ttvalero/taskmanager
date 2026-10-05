@@ -2,6 +2,8 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:3000 http://127.0.0.1:3000; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta name="referrer" content="no-referrer">
     <link rel="stylesheet" href="../css/tarefa.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tarefa</title>
@@ -62,6 +64,7 @@
         </aside>
     </main>
 
+    <script src="../js/config.js"></script>
     <script src="../js/script.js"></script>
 </body>
 </html>

@@ -2,6 +2,8 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:3000 http://127.0.0.1:3000; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta name="referrer" content="no-referrer">
     <link rel="stylesheet" href="../css/tarefas.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tarefas</title>
@@ -32,6 +34,16 @@
                 <button class="filtro filtro-media" type="button" data-filtro="media">Média</button>
                 <button class="filtro filtro-baixa" type="button" data-filtro="baixa">Baixa</button>
             </nav>
+        </section>
+
+        <section class="area-sugestoes" aria-labelledby="titulo-sugestoes">
+            <h2 id="titulo-sugestoes">Sugestões e contato</h2>
+            <form id="formulario-feedback">
+                <label for="mensagem-feedback">Sua mensagem</label>
+                <textarea id="mensagem-feedback" name="mensagem" maxlength="3000" rows="5" required placeholder="Conte sua sugestão ou dúvida"></textarea>
+                <button type="submit">Enviar mensagem</button>
+                <p id="status-feedback" class="status-feedback" role="status" aria-live="polite"></p>
+            </form>
         </section>
     </header>
 
@@ -86,6 +98,7 @@
         </aside>
     </main>
 
+    <script src="../js/config.js"></script>
     <script src="../js/script.js"></script>
 </body>
 </html>

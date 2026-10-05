@@ -39,10 +39,15 @@ function autenticarUsuario(req, res, next) {
     try {
 
         // Verifica se o token foi criado usando nossa chave secreta
-        const usuario = jwt.verify(
-            token,
-            process.env.JWT_SECRET
-        );
+        const usuario = jwt.verify(token, process.env.JWT_SECRET, {
+            algorithms: ["HS256"]
+        });
+
+        if (!Number.isSafeInteger(usuario.id) || usuario.id < 1) {
+            return res.status(401).json({
+                erro: "Token inválido ou expirado"
+            });
+        }
 
         // Guarda os dados do usuário dentro da requisição
         // Isso permite que outras partes do backend saibam

@@ -8,16 +8,20 @@ let filtroTarefasAtual = "todas";
 // Guarda os calendários que estão ativos na página.
 const calendariosAtivos = [];
 
-// Endereço base da nossa API.
-// Como o backend está rodando localmente, usamos localhost.
-const API_URL = "http://localhost:3000";
+// Em produção, defina TASK_MANAGER_API_URL quando a API estiver em outro domínio.
+const API_URL = window.TASK_MANAGER_API_URL || (
+  window.location.protocol === "file:" ||
+  ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    ? "http://localhost:3000"
+    : window.location.origin
+);
 
 // ============================================================
 // INICIALIZAÇÃO
 // ============================================================
 
 // Espera o HTML terminar de carregar antes de configurar cada página.
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
   // Procura o formulário de cadastro pelo ID.
   const formularioCadastro = document.getElementById("formulario-cadastro");
 
@@ -26,6 +30,34 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Procura o formulário de tarefa.
   const formularioTarefa = document.getElementById("formulario-tarefa");
+
+  document.querySelectorAll("[data-navigate]").forEach(function (botao) {
+    botao.addEventListener("click", function () {
+      window.location.href = botao.dataset.navigate;
+    });
+  });
+
+  const paginaProtegida = Boolean(
+    formularioTarefa ||
+      document.getElementById("lista-tarefas") ||
+      document.getElementById("lista-tarefas-concluidas") ||
+      document.getElementById("nomePerfil"),
+  );
+
+  if (paginaProtegida) {
+    if (!obterToken()) {
+      window.location.href = "../index.html";
+      return;
+    }
+
+    try {
+      await carregarDadosRemotos();
+    } catch (erro) {
+      console.error("Não foi possível carregar os dados da conta:", erro);
+      alert("Não foi possível carregar seus dados. Tente novamente.");
+      return;
+    }
+  }
 
   // Atualiza a saudação quando a página de tarefas é aberta.
   atualizarSaudacao();
@@ -66,6 +98,11 @@ document.addEventListener("DOMContentLoaded", function () {
     renderizarTarefas(filtroTarefasAtual);
   }
 
+  const formularioFeedback = document.getElementById("formulario-feedback");
+  if (formularioFeedback) {
+    configurarFormularioFeedback(formularioFeedback);
+  }
+
   // Configura a página de tarefas concluídas.
   if (document.getElementById("lista-tarefas-concluidas")) {
     renderizarTarefasConcluidas();
@@ -103,10 +140,12 @@ document.addEventListener("DOMContentLoaded", function () {
   if (botaoSair) {
     botaoSair.addEventListener("click", function () {
       // Remove os dados básicos do usuário atual.
-      localStorage.removeItem("usuarioAtual");
+      sessionStorage.removeItem("usuarioAtual");
 
-      // Remove também o JWT.
+      sessionStorage.removeItem("token");
+      localStorage.removeItem("usuarioAtual");
       localStorage.removeItem("token");
+      tarefasDoUsuario = [];
 
       // Volta para a página de login.
       window.location.href = "../index.html";
@@ -120,14 +159,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // Recupera os dados do usuário salvo no navegador.
 function obterUsuarioAtual() {
-  const usuarioSalvo = localStorage.getItem("usuarioAtual");
+  let usuarioSalvo = sessionStorage.getItem("usuarioAtual");
+
+  if (!usuarioSalvo) {
+    usuarioSalvo = localStorage.getItem("usuarioAtual");
+    if (usuarioSalvo) {
+      sessionStorage.setItem("usuarioAtual", usuarioSalvo);
+      localStorage.removeItem("usuarioAtual");
+    }
+  }
 
   return usuarioSalvo ? JSON.parse(usuarioSalvo) : null;
 }
 
 // Guarda os dados básicos do usuário atual.
 function salvarUsuarioAtual(conta) {
-  localStorage.setItem(
+  sessionStorage.setItem(
     "usuarioAtual",
     JSON.stringify({
       id: conta.id,
@@ -139,7 +186,147 @@ function salvarUsuarioAtual(conta) {
 
 // Recupera o JWT salvo no navegador.
 function obterToken() {
-  return localStorage.getItem("token");
+  let token = sessionStorage.getItem("token");
+
+  if (!token) {
+    token = localStorage.getItem("token");
+    if (token) {
+      sessionStorage.setItem("token", token);
+      localStorage.removeItem("token");
+    }
+  }
+
+  return token;
+}
+
+let tarefasDoUsuario = [];
+
+async function requisicaoAutenticada(caminho, opcoes = {}) {
+  const token = obterToken();
+  const resposta = await fetch(`${API_URL}${caminho}`, {
+    ...opcoes,
+    headers: {
+      ...(opcoes.headers || {}),
+      Authorization: `Bearer ${token}`,
+      ...(opcoes.body ? { "Content-Type": "application/json" } : {}),
+    },
+  });
+
+  const dados = await resposta.json().catch(() => ({}));
+
+  if (resposta.status === 401) {
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("usuarioAtual");
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuarioAtual");
+    window.location.href = "../index.html";
+    throw new Error("Sessão expirada");
+  }
+
+  if (!resposta.ok) {
+    const erro = new Error(dados.erro || "Falha na solicitação");
+    erro.status = resposta.status;
+    throw erro;
+  }
+
+  return dados;
+}
+
+function configurarFormularioFeedback(formulario) {
+  const campoMensagem = document.getElementById("mensagem-feedback");
+  const status = document.getElementById("status-feedback");
+  const botao = formulario.querySelector('button[type="submit"]');
+
+  formulario.addEventListener("submit", async function (evento) {
+    evento.preventDefault();
+    const mensagem = campoMensagem.value.trim();
+
+    if (!mensagem) {
+      status.textContent = "Escreva uma mensagem antes de enviar.";
+      return;
+    }
+
+    botao.disabled = true;
+    status.textContent = "Enviando...";
+
+    try {
+      const resultado = await requisicaoAutenticada("/feedback", {
+        method: "POST",
+        body: JSON.stringify({ mensagem }),
+      });
+      formulario.reset();
+      status.textContent = resultado.mensagem;
+    } catch (erro) {
+      status.textContent = erro.message || "Não foi possível enviar a mensagem.";
+    } finally {
+      botao.disabled = false;
+    }
+  });
+}
+
+async function carregarDadosRemotos() {
+  const [usuario, tarefas] = await Promise.all([
+    requisicaoAutenticada("/usuarios/me"),
+    requisicaoAutenticada("/tarefas"),
+  ]);
+
+  salvarUsuarioAtual(usuario);
+  tarefasDoUsuario = Array.isArray(tarefas) ? tarefas : [];
+  await migrarTarefasLegadas(usuario.email);
+}
+
+async function migrarTarefasLegadas(email) {
+  let tarefasLegadas;
+  try {
+    tarefasLegadas = JSON.parse(localStorage.getItem("tarefasPorUsuario") || "{}");
+  } catch {
+    localStorage.removeItem("tarefasPorUsuario");
+    return;
+  }
+
+  const tarefas = tarefasLegadas[email];
+  if (!Array.isArray(tarefas) || tarefas.length === 0) {
+    return;
+  }
+
+  for (const tarefa of [...tarefas]) {
+    let dados;
+    try {
+      dados = await requisicaoAutenticada("/tarefas", {
+        method: "POST",
+        body: JSON.stringify({
+          titulo: tarefa.titulo,
+          data: tarefa.data,
+          importancia: tarefa.importancia,
+          descricao: tarefa.descricao,
+          concluida: Boolean(tarefa.concluida),
+          fixada: Boolean(tarefa.fixada),
+        }),
+      });
+    } catch (erro) {
+      if (erro.status !== 400) {
+        throw erro;
+      }
+    }
+
+    if (dados) {
+      tarefasDoUsuario.push({ ...tarefa, id: dados.id });
+    }
+
+    const indiceLegado = tarefasLegadas[email].findIndex(
+      (item) => JSON.stringify(item) === JSON.stringify(tarefa),
+    );
+    if (indiceLegado !== -1) {
+      tarefasLegadas[email].splice(indiceLegado, 1);
+    }
+    const restante = tarefasLegadas[email];
+    if (restante.length > 0) {
+      tarefasLegadas[email] = restante;
+    } else {
+      delete tarefasLegadas[email];
+    }
+    localStorage.setItem("tarefasPorUsuario", JSON.stringify(tarefasLegadas));
+  }
 }
 
 // ============================================================
@@ -222,6 +409,8 @@ async function carregarPerfil() {
     // Verifica se o token expirou ou é inválido.
     if (resposta.status === 401) {
       // Remove a sessão inválida.
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("usuarioAtual");
       localStorage.removeItem("token");
       localStorage.removeItem("usuarioAtual");
 
@@ -394,6 +583,8 @@ function configurarEdicaoPerfil() {
 
       // Verifica se o token expirou.
       if (resposta.status === 401) {
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("usuarioAtual");
         localStorage.removeItem("token");
         localStorage.removeItem("usuarioAtual");
 
@@ -676,7 +867,9 @@ function configurarLogin(formularioLogin) {
 
       // Salva o JWT recebido do backend.
       // O token será usado nas rotas protegidas.
-      localStorage.setItem("token", dados.token);
+      sessionStorage.setItem("token", dados.token);
+      localStorage.removeItem("token");
+      localStorage.removeItem("usuarioAtual");
 
       // Salva somente os dados básicos do usuário.
       // A senha nunca é armazenada aqui.
@@ -696,33 +889,9 @@ function configurarLogin(formularioLogin) {
   });
 }
 
-// ============================================================
-// TAREFAS - LOCALSTORAGE
-// ============================================================
-
-// Lê todas as tarefas agrupadas pelo e-mail de cada conta.
-function obterTarefasSalvas() {
-  const tarefasSalvas = localStorage.getItem("tarefasPorUsuario");
-
-  return tarefasSalvas ? JSON.parse(tarefasSalvas) : {};
-}
-
-// Salva novamente a lista completa de tarefas.
-function salvarTarefasSalvas(tarefasPorUsuario) {
-  localStorage.setItem("tarefasPorUsuario", JSON.stringify(tarefasPorUsuario));
-}
-
-// Devolve somente as tarefas da conta atual.
+// Usa somente as tarefas carregadas e autorizadas pela API.
 function obterTarefasDoUsuarioAtual() {
-  const usuarioAtual = obterUsuarioAtual();
-
-  const tarefasPorUsuario = obterTarefasSalvas();
-
-  if (!usuarioAtual) {
-    return [];
-  }
-
-  return tarefasPorUsuario[usuarioAtual.email] || [];
+  return tarefasDoUsuario;
 }
 
 // ============================================================
@@ -733,7 +902,7 @@ function obterTarefasDoUsuarioAtual() {
 function configurarPaginaTarefa(formularioTarefa) {
   const usuarioAtual = obterUsuarioAtual();
 
-  const idTarefaEditando = localStorage.getItem("tarefaEditando");
+  const idTarefaEditando = sessionStorage.getItem("tarefaEditando");
 
   if (!usuarioAtual) {
     alert("Faça login antes de adicionar uma tarefa.");
@@ -749,7 +918,7 @@ function configurarPaginaTarefa(formularioTarefa) {
     carregarTarefaParaEdicao(idTarefaEditando);
   }
 
-  formularioTarefa.addEventListener("submit", function (evento) {
+  formularioTarefa.addEventListener("submit", async function (evento) {
     evento.preventDefault();
 
     const titulo = document.getElementById("titulo-tarefa").value.trim();
@@ -772,23 +941,23 @@ function configurarPaginaTarefa(formularioTarefa) {
     // =================================================
 
     if (idTarefaEditando) {
-      const atualizou = alterarTarefaAtual(
-        idTarefaEditando,
-        function (tarefaAtualizada) {
-          tarefaAtualizada.titulo = titulo;
+      try {
+        const atualizou = await alterarTarefaAtual(
+          idTarefaEditando,
+          function (tarefaAtualizada) {
+            tarefaAtualizada.titulo = titulo;
+            tarefaAtualizada.data = data;
+            tarefaAtualizada.importancia = importancia;
+            tarefaAtualizada.descricao = descricao;
+          },
+        );
 
-          tarefaAtualizada.data = data;
-
-          tarefaAtualizada.importancia = importancia;
-
-          tarefaAtualizada.descricao = descricao;
-        },
-      );
-
-      if (atualizou) {
-        localStorage.removeItem("tarefaEditando");
-
-        window.location.href = "../html/tarefas.html";
+        if (atualizou) {
+          sessionStorage.removeItem("tarefaEditando");
+          window.location.href = "../html/tarefas.html";
+        }
+      } catch (erro) {
+        alert(erro.message || "Não foi possível atualizar a tarefa.");
       }
 
       return;
@@ -799,9 +968,6 @@ function configurarPaginaTarefa(formularioTarefa) {
     // =================================================
 
     const novaTarefa = {
-      // Cria um ID único para a tarefa.
-      id: Date.now().toString() + "-" + Math.random().toString(16).slice(2),
-
       titulo: titulo,
 
       data: data,
@@ -815,17 +981,16 @@ function configurarPaginaTarefa(formularioTarefa) {
       fixada: false,
     };
 
-    const tarefasPorUsuario = obterTarefasSalvas();
-
-    const tarefasDoUsuario = tarefasPorUsuario[usuarioAtual.email] || [];
-
-    tarefasDoUsuario.push(novaTarefa);
-
-    tarefasPorUsuario[usuarioAtual.email] = tarefasDoUsuario;
-
-    salvarTarefasSalvas(tarefasPorUsuario);
-
-    window.location.href = "../html/tarefas.html";
+    try {
+      const resultado = await requisicaoAutenticada("/tarefas", {
+        method: "POST",
+        body: JSON.stringify(novaTarefa),
+      });
+      tarefasDoUsuario.push({ ...novaTarefa, id: resultado.id });
+      window.location.href = "../html/tarefas.html";
+    } catch (erro) {
+      alert(erro.message || "Não foi possível criar a tarefa.");
+    }
   });
 
   // ========================================================
@@ -836,7 +1001,7 @@ function configurarPaginaTarefa(formularioTarefa) {
 
   if (botaoCancelar) {
     botaoCancelar.addEventListener("click", function () {
-      localStorage.removeItem("tarefaEditando");
+      sessionStorage.removeItem("tarefaEditando");
 
       window.location.href = "../html/tarefas.html";
     });
@@ -850,11 +1015,11 @@ function configurarPaginaTarefa(formularioTarefa) {
 // Preenche o formulário com os dados da tarefa.
 function carregarTarefaParaEdicao(id) {
   const tarefa = obterTarefasDoUsuarioAtual().find(function (item) {
-    return item.id === id;
+    return String(item.id) === String(id);
   });
 
   if (!tarefa) {
-    localStorage.removeItem("tarefaEditando");
+    sessionStorage.removeItem("tarefaEditando");
 
     return;
   }
@@ -998,7 +1163,7 @@ function renderizarTarefas(filtro) {
 
     card.querySelector(".data-tarefa").textContent = formatarData(tarefa.data);
 
-    card.querySelector(".data-tarefa").dateTime = tarefa.data;
+    card.querySelector(".data-tarefa").dateTime = String(tarefa.data).slice(0, 10);
 
     card.querySelector(".importancia-tarefa").textContent =
       "Importância: " + formatarImportancia(tarefa.importancia);
@@ -1011,6 +1176,11 @@ function renderizarTarefas(filtro) {
     card
       .querySelector(".botao-fixar")
       .setAttribute("aria-pressed", tarefa.fixada ? "true" : "false");
+
+    card.querySelector(".botao-fixar").setAttribute(
+      "aria-label",
+      tarefa.fixada ? "Desafixar tarefa" : "Fixar tarefa",
+    );
 
     card.querySelector(".botao-fixar").title = tarefa.fixada
       ? "Desafixar tarefa"
@@ -1057,30 +1227,22 @@ function compararTarefas(primeiraTarefa, segundaTarefa) {
 // ============================================================
 
 // Atualiza uma tarefa da conta atual.
-function alterarTarefaAtual(id, alteracao) {
-  const usuarioAtual = obterUsuarioAtual();
-
-  if (!usuarioAtual) {
-    return false;
-  }
-
-  const tarefasPorUsuario = obterTarefasSalvas();
-
-  const tarefas = tarefasPorUsuario[usuarioAtual.email] || [];
-
-  const indice = tarefas.findIndex(function (tarefa) {
-    return tarefa.id === id;
+async function alterarTarefaAtual(id, alteracao) {
+  const tarefaAtual = tarefasDoUsuario.find(function (tarefa) {
+    return String(tarefa.id) === String(id);
   });
 
-  if (indice === -1) {
+  if (!tarefaAtual) {
     return false;
   }
 
-  alteracao(tarefas[indice]);
-
-  tarefasPorUsuario[usuarioAtual.email] = tarefas;
-
-  salvarTarefasSalvas(tarefasPorUsuario);
+  const tarefaAtualizada = { ...tarefaAtual };
+  alteracao(tarefaAtualizada);
+  await requisicaoAutenticada(`/tarefas/${tarefaAtualizada.id}`, {
+    method: "PUT",
+    body: JSON.stringify(tarefaAtualizada),
+  });
+  Object.assign(tarefaAtual, tarefaAtualizada);
 
   return true;
 }
@@ -1097,14 +1259,16 @@ function configurarAcoesDoCard(card, tarefa) {
   // FIXAR
   // ========================================================
 
-  card.querySelector(".botao-fixar").addEventListener("click", function () {
-    alterarTarefaAtual(tarefa.id, function (tarefaAtualizada) {
-      tarefaAtualizada.fixada = !tarefaAtualizada.fixada;
-    });
-
-    renderizarTarefas(filtroTarefasAtual);
-
-    renderizarCalendarios();
+  card.querySelector(".botao-fixar").addEventListener("click", async function () {
+    try {
+      await alterarTarefaAtual(tarefa.id, function (tarefaAtualizada) {
+        tarefaAtualizada.fixada = !tarefaAtualizada.fixada;
+      });
+      renderizarTarefas(filtroTarefasAtual);
+      renderizarCalendarios();
+    } catch (erro) {
+      alert(erro.message || "Não foi possível atualizar a tarefa.");
+    }
   });
 
   // ========================================================
@@ -1113,8 +1277,13 @@ function configurarAcoesDoCard(card, tarefa) {
 
   card
     .querySelector(".checkbox-conclusao")
-    .addEventListener("change", function () {
-      concluirTarefa(tarefa.id);
+    .addEventListener("change", async function () {
+      try {
+        await concluirTarefa(tarefa.id);
+      } catch (erro) {
+        alert(erro.message || "Não foi possível concluir a tarefa.");
+        renderizarTarefas(filtroTarefasAtual);
+      }
     });
 
   // ========================================================
@@ -1122,7 +1291,7 @@ function configurarAcoesDoCard(card, tarefa) {
   // ========================================================
 
   card.querySelector(".botao-editar").addEventListener("click", function () {
-    localStorage.setItem("tarefaEditando", tarefa.id);
+    sessionStorage.setItem("tarefaEditando", tarefa.id);
 
     window.location.href = "tarefa.html";
   });
@@ -1144,8 +1313,8 @@ function configurarAcoesDoCard(card, tarefa) {
 // ============================================================
 
 // Marca uma tarefa como concluída.
-function concluirTarefa(id) {
-  alterarTarefaAtual(id, function (tarefaAtualizada) {
+async function concluirTarefa(id) {
+  await alterarTarefaAtual(id, function (tarefaAtualizada) {
     tarefaAtualizada.concluida = true;
   });
 
@@ -1198,10 +1367,13 @@ function mostrarConfirmacaoExclusao(id) {
     modal.remove();
   });
 
-  confirmar.addEventListener("click", function () {
-    excluirTarefa(id);
-
-    modal.remove();
+  confirmar.addEventListener("click", async function () {
+    try {
+      await excluirTarefa(id);
+      modal.remove();
+    } catch (erro) {
+      alert(erro.message || "Não foi possível excluir a tarefa.");
+    }
   });
 
   acoes.appendChild(cancelar);
@@ -1224,22 +1396,11 @@ function mostrarConfirmacaoExclusao(id) {
 // ============================================================
 
 // Remove somente a tarefa da conta atual.
-function excluirTarefa(id) {
-  const usuarioAtual = obterUsuarioAtual();
-
-  if (!usuarioAtual) {
-    return;
-  }
-
-  const tarefasPorUsuario = obterTarefasSalvas();
-
-  const tarefas = tarefasPorUsuario[usuarioAtual.email] || [];
-
-  tarefasPorUsuario[usuarioAtual.email] = tarefas.filter(function (tarefa) {
-    return tarefa.id !== id;
+async function excluirTarefa(id) {
+  await requisicaoAutenticada(`/tarefas/${id}`, { method: "DELETE" });
+  tarefasDoUsuario = tarefasDoUsuario.filter(function (tarefa) {
+    return String(tarefa.id) !== String(id);
   });
-
-  salvarTarefasSalvas(tarefasPorUsuario);
 
   renderizarTarefas(filtroTarefasAtual);
 
@@ -1336,7 +1497,7 @@ function formatarData(data) {
     return "Sem data";
   }
 
-  const partes = data.split("-");
+  const partes = String(data).slice(0, 10).split("-");
 
   return partes.length === 3
     ? partes[2] + "/" + partes[1] + "/" + partes[0]

@@ -1,6 +1,22 @@
 // Importa a conexão com o banco de dados MySQL
 const conexao = require("../config/database");
 
+function dataValida(data) {
+  if (typeof data !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(data)) {
+    return false;
+  }
+
+  const [ano, mes, dia] = data.split("-").map(Number);
+  const dataConvertida = new Date(Date.UTC(ano, mes - 1, dia));
+
+  return dataConvertida.toISOString().slice(0, 10) === data;
+}
+
+function idTarefaValido(id) {
+  const idConvertido = Number(id);
+  return Number.isSafeInteger(idConvertido) && idConvertido > 0;
+}
+
 // ============================================================
 // BUSCAR TAREFAS DO USUÁRIO
 // ============================================================
@@ -39,8 +55,12 @@ function buscarTarefas(req, res) {
       });
     }
 
-    // Envia as tarefas encontradas como resposta JSON
-    res.json(resultados);
+    // Mantém os campos booleanos estáveis entre MySQL e a API.
+    res.json(resultados.map((tarefa) => ({
+      ...tarefa,
+      concluida: Boolean(tarefa.concluida),
+      fixada: Boolean(tarefa.fixada),
+    })));
   });
 }
 
@@ -102,7 +122,7 @@ function criarTarefa(req, res) {
 
   // Verifica se a data foi enviada
   // e se realmente é um texto
-  if (!data || typeof data !== "string") {
+  if (!dataValida(data)) {
     // Bloqueia a criação se a data não estiver presente
     return res.status(400).json({
       erro: "A data é obrigatória",
@@ -112,15 +132,6 @@ function criarTarefa(req, res) {
   // Expressão regular utilizada para verificar
   // se a data possui o formato YYYY-MM-DD
   // Exemplo válido: 2026-09-12
-  const formatoData = /^\d{4}-\d{2}-\d{2}$/;
-
-  // Bloqueia datas que não seguem o formato esperado
-  if (!formatoData.test(data)) {
-    return res.status(400).json({
-      erro: "A data deve estar no formato YYYY-MM-DD",
-    });
-  }
-
   // Verifica se a importância possui um valor permitido
   if (
     importancia !== undefined &&
@@ -214,6 +225,10 @@ function atualizarTarefa(req, res) {
   // Pega o ID da tarefa enviado pela URL
   const tarefaId = req.params.id;
 
+  if (!idTarefaValido(tarefaId)) {
+    return res.status(400).json({ erro: "ID de tarefa inválido" });
+  }
+
   // Pega os novos dados enviados pelo cliente
   const { titulo, data, importancia, descricao, concluida, fixada } = req.body;
 
@@ -241,7 +256,7 @@ function atualizarTarefa(req, res) {
 
   // Verifica se a data foi enviada
   // e se realmente é um texto
-  if (!data || typeof data !== "string") {
+  if (!dataValida(data)) {
     // Bloqueia a atualização se a data não estiver presente
     return res.status(400).json({
       erro: "A data é obrigatória",
@@ -251,15 +266,6 @@ function atualizarTarefa(req, res) {
   // Expressão regular utilizada para verificar
   // se a data possui o formato YYYY-MM-DD
   // Exemplo válido: 2026-09-12
-  const formatoData = /^\d{4}-\d{2}-\d{2}$/;
-
-  // Bloqueia datas que não seguem o formato esperado
-  if (!formatoData.test(data)) {
-    return res.status(400).json({
-      erro: "A data deve estar no formato YYYY-MM-DD",
-    });
-  }
-
   // Verifica se a descrição, quando enviada,
   // é realmente um texto
   if (
@@ -354,10 +360,23 @@ function atualizarTarefa(req, res) {
 
       // Verifica se nenhuma tarefa foi encontrada
       if (resultado.affectedRows === 0) {
-        // Impede que um usuário atualize
-        // uma tarefa pertencente a outro usuário
-        return res.status(404).json({
-          erro: "Tarefa não encontrada",
+        const sqlVerificarExistencia = `
+          SELECT id
+          FROM tarefas
+          WHERE id = ? AND usuario_id = ?
+        `;
+
+        return conexao.query(sqlVerificarExistencia, [tarefaId, usuarioId], (erroConsulta, tarefas) => {
+          if (erroConsulta) {
+            console.error("Erro ao confirmar tarefa atualizada:", erroConsulta.message);
+            return res.status(500).json({ erro: "Erro ao atualizar tarefa" });
+          }
+
+          if (tarefas.length === 0) {
+            return res.status(404).json({ erro: "Tarefa não encontrada" });
+          }
+
+          return res.json({ mensagem: "Tarefa atualizada com sucesso!" });
         });
       }
 
@@ -381,6 +400,10 @@ function excluirTarefa(req, res) {
 
   // Pega o ID da tarefa enviado pela URL
   const tarefaId = req.params.id;
+
+  if (!idTarefaValido(tarefaId)) {
+    return res.status(400).json({ erro: "ID de tarefa inválido" });
+  }
 
   // Comando SQL utilizado para excluir a tarefa
   const sql = `

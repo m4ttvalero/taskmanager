@@ -3,6 +3,8 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:3000 http://127.0.0.1:3000; object-src 'none'; base-uri 'self'; form-action 'self'" />
+    <meta name="referrer" content="no-referrer" />
 
     <link rel="stylesheet" href="css/estilo.css" />
 
@@ -60,7 +62,7 @@
 
         <button
           type="button"
-          onclick="window.location.href = 'html/cadastro.html'"
+          data-navigate="html/cadastro.html"
         >
           Cadastrar
         </button>
@@ -69,6 +71,7 @@
 
     <!-- JavaScript principal do Task Manager -->
 
+    <script src="js/config.js"></script>
     <script src="js/script.js"></script>
   </body>
 </html>

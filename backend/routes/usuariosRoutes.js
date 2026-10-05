@@ -6,25 +6,27 @@ const usuariosController = require("../controllers/usuariosController");
 
 // Importa o middleware responsável por verificar o JWT
 const autenticarUsuario = require("../middlewares/authMiddleware");
+const { rateLimit } = require("express-rate-limit");
 
 // Cria um Router para organizar as rotas
 const router = express.Router();
+const limitadorAutenticacao = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { erro: "Muitas tentativas. Tente novamente em alguns minutos." }
+});
 
 
 // ============================================================
 // ROTAS PÚBLICAS
 // ============================================================
 
-// Rota GET para buscar todos os usuários
-router.get(
-    "/",
-    usuariosController.buscarUsuarios
-);
-
-
 // Rota POST para cadastrar um novo usuário
 router.post(
     "/",
+    limitadorAutenticacao,
     usuariosController.cadastrarUsuario
 );
 
@@ -32,6 +34,7 @@ router.post(
 // Rota POST utilizada para realizar o login
 router.post(
     "/login",
+    limitadorAutenticacao,
     usuariosController.fazerLogin
 );
 
